@@ -1,0 +1,4 @@
+#Fri Nov 18 11:26:06 GMT+07:00 2022
+base.0=D\:\\KaceeApp\\KaceePOS\\android\\app\\build\\intermediates\\dex\\debug\\mergeDexDebug\\classes.dex
+renamed.0=classes.dex
+path.0=classes.dex
