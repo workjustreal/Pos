@@ -45,6 +45,8 @@ class _MainState extends State<MainScreen> {
       total_qty,
       total_price,
       shop_code,
+      shop_name,
+      self_name,
       machine_code;
 
   bool printBinded = false;
@@ -69,6 +71,7 @@ class _MainState extends State<MainScreen> {
     super.initState();
     _loadSaleOrder();
     printConnect();
+    _userDetail();
   }
 
   Future<void> printConnect() async {
@@ -144,6 +147,18 @@ class _MainState extends State<MainScreen> {
       _showAlertDialog(context, message);
     }
     return bytes;
+  }
+
+  void _userDetail() async {
+    var path = 'user/detail/';
+    var urlapi = Network().getSearchProduct(path);
+    var response = await urlapi;
+    var jsonResponse = json.decode(response.body);
+    setState(() {
+      shop_name = jsonResponse['data']['shop_name'].toString();
+      self_name = jsonResponse['data']['name'].toString();
+    });
+    //no connected
   }
 
   void _loadSaleOrder() async {
@@ -418,14 +433,15 @@ class _MainState extends State<MainScreen> {
                                             borderRadius: BorderRadius.only(
                                                 topLeft: Radius.circular(10.0),
                                                 topRight: Radius.circular(10.0),
-                                                bottomLeft: Radius.circular(0.0),
+                                                bottomLeft:
+                                                    Radius.circular(0.0),
                                                 bottomRight:
                                                     Radius.circular(0.0)),
                                           ),
                                           height: 50,
                                           child: Container(
-                                            margin:
-                                                const EdgeInsets.only(top: 12.0),
+                                            margin: const EdgeInsets.only(
+                                                top: 12.0),
                                             child: const Text(
                                               "เคลียร์ตะกร้า!",
                                               style: TextStyle(
@@ -505,13 +521,13 @@ class _MainState extends State<MainScreen> {
                               decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(50.0),
                                   border: Border.all(
-                                    color:
-                                        Colors.white38, // Change the border color
+                                    color: Colors
+                                        .white38, // Change the border color
                                     width: 1.0, // Change the border width
                                     style: BorderStyle
                                         .solid, // Change the border style
                                   )),
-                              width: 100,
+                              width: 120,
                               height: 25,
                               alignment: Alignment.center,
                               child: Row(children: [
@@ -525,7 +541,8 @@ class _MainState extends State<MainScreen> {
                                     child: Icon(
                                       Icons
                                           .storefront, // You can replace this with your desired icon
-                                      color: Colors.white, // Customize the icon color
+                                      color: Colors
+                                          .white, // Customize the icon color
                                       size: 14, // Customize the icon size
                                     ),
                                   ),
@@ -533,8 +550,9 @@ class _MainState extends State<MainScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(left: 2),
                                   child: Text(
-                                    'Shop : $shop_code',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                    '$shop_name',
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 13),
                                   ),
                                 ),
                               ]),
@@ -563,7 +581,8 @@ class _MainState extends State<MainScreen> {
                                     child: Icon(
                                       Icons
                                           .monitor, // You can replace this with your desired icon
-                                      color:Colors.white, // Customize the icon color
+                                      color: Colors
+                                          .white, // Customize the icon color
                                       size: 14, // Customize the icon size
                                     ),
                                   ),
@@ -571,8 +590,9 @@ class _MainState extends State<MainScreen> {
                                 Padding(
                                   padding: const EdgeInsets.only(left: 2),
                                   child: Text(
-                                    'Pos : $machine_code',
-                                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                                    'เครื่อง $machine_code',
+                                    style: const TextStyle(
+                                        color: Colors.white70, fontSize: 13),
                                   ),
                                 ),
                               ]),
