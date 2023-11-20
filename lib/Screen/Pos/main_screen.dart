@@ -338,7 +338,7 @@ class _MainState extends State<MainScreen> {
       String ref1 = '$order_number';
       String ref2 = '024293333';
       String terminalId = '0001';
-      String amount = '0.01';
+      String amount = sum;
       String remark = timestamp;
 
       String strA =
@@ -663,7 +663,7 @@ class _MainState extends State<MainScreen> {
                             textColor: Colors.white,
                             title: Row(children: const <Widget>[
                               Expanded(
-                                  flex: 1,
+                                  flex: 2,
                                   child: Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text("รหัสสินค้า"))),
@@ -883,7 +883,7 @@ class _MainState extends State<MainScreen> {
                                                 Text(
                                                   _barcode == null
                                                       ? 'สแกนสินค้า'
-                                                      : 'key: $_barcode',
+                                                      : 'barcode: $_barcode',
                                                   style: tableB,
                                                 ),
                                               ],

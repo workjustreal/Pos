@@ -50,7 +50,7 @@ class _SecondState extends State<SecondScreen> {
   var coreItem = StringBuffer();
   var coreTotal = StringBuffer();
 
-  final _maxSeconds = 180;
+  final _maxSeconds = 30;
   int _currentSecond = 0;
   late Timer _timer;
 
@@ -59,7 +59,7 @@ class _SecondState extends State<SecondScreen> {
     productList = null;
     super.initState();
     _loadSaleOrder();
-    // _startTimer();
+    _startTimer();
     printConnect();
   }
 
@@ -85,7 +85,7 @@ class _SecondState extends State<SecondScreen> {
       String ref1 = '$order_number';
       String ref2 = '024293333';
       String terminalId = '0001';
-      String amount = '0.01';
+      String amount = sum;
       String remark = timestamp;
 
       String strA =
@@ -245,10 +245,9 @@ class _SecondState extends State<SecondScreen> {
     var path = 'payment/complete/$id';
     var urlapi = Network().getSearchProduct(path);
     var response = await urlapi;
-    // print(response.statusCode);
     if (response.statusCode == 200) {
       printFocus();
-      // _timer.cancel();
+      _timer.cancel();
       setState(() {
         Navigator.pushAndRemoveUntil(context,
             MaterialPageRoute(builder: (BuildContext context) {
@@ -272,72 +271,75 @@ class _SecondState extends State<SecondScreen> {
     return '$formattedMinutesLeft : $formattedSecondsLeft';
   }
 
-  // void _startTimer() {
-  //   const duration = Duration(seconds: 1);
-  //   _timer = Timer.periodic(duration, (Timer timer) {
-  //     setState(() {
-  //       _currentSecond = timer.tick;
-  //       _checkCallback();
+  void _startTimer() {
+    const duration = Duration(seconds: 1);
+    _timer = Timer.periodic(duration, (Timer timer) {
+      setState(() {
+        _currentSecond = timer.tick;
+        _checkCallback();
 
-  //       if (timer.tick >= _maxSeconds) {
-  //         _checkCallback();
-  //         timer.cancel();
-  //         showDialog(
-  //           context: context,
-  //           builder: (BuildContext context) => AlertDialog(
-  //             shape: const RoundedRectangleBorder(
-  //                 borderRadius: BorderRadius.all(Radius.circular(20.0))),
-  //             // titlePadding: const EdgeInsets.all(0),
-  //             title: Container(
-  //               decoration: const BoxDecoration(
-  //                 color: kcSecondaryColor,
-  //                 borderRadius: BorderRadius.only(
-  //                     topLeft: Radius.circular(10.0),
-  //                     topRight: Radius.circular(10.0),
-  //                     bottomLeft: Radius.circular(0.0),
-  //                     bottomRight: Radius.circular(0.0)),
-  //               ),
-  //               height: 50,
-  //               child: const Padding(
-  //                 padding: EdgeInsets.only(
-  //                   top: 12,
-  //                 ),
-  //                 child: Text(
-  //                   'แจ้งเตือน',
-  //                   style: TextStyle(color: Colors.white, fontSize: 18),
-  //                   textAlign: TextAlign.center,
-  //                 ),
-  //               ),
-  //             ),
-  //             titlePadding: const EdgeInsets.all(0),
-  //             content: const Text(
-  //               'ท่านไม่ได้ชำระเงินภายในระยะเวลาที่กำหนด',
-  //               style: TextStyle(fontSize: 14),
-  //             ),
-  //             actions: <Widget>[
-  //               TextButton(
-  //                 onPressed: () {
-  //                   cancelOrder();
-  //                 },
-  //                 child: const Text(
-  //                   'ยกเลิกคำสั่งซิ้อ',
-  //                   style: TextStyle(color: Colors.red, fontSize: 14),
-  //                 ),
-  //               ),
-  //               TextButton(
-  //                 // onPressed: () => Navigator.pop(context, 'OK'),
-  //                 onPressed: () {
-  //                   QRPayment();
-  //                 },
-  //                 child: const Text('ชำระเงินอีกครั้ง'),
-  //               ),
-  //             ],
-  //           ),
-  //         );
-  //       }
-  //     });
-  //   });
-  // }
+        if (timer.tick >= _maxSeconds) {
+          _checkCallback();
+            timer.cancel();
+          Future.delayed(Duration(seconds: 3), () {
+            _checkCallback();
+            showDialog(
+              context: context,
+              builder: (BuildContext context) => AlertDialog(
+                shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(20.0))),
+                // titlePadding: const EdgeInsets.all(0),
+                title: Container(
+                  decoration: const BoxDecoration(
+                    color: kcSecondaryColor,
+                    borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(10.0),
+                        topRight: Radius.circular(10.0),
+                        bottomLeft: Radius.circular(0.0),
+                        bottomRight: Radius.circular(0.0)),
+                  ),
+                  height: 50,
+                  child: const Padding(
+                    padding: EdgeInsets.only(
+                      top: 12,
+                    ),
+                    child: Text(
+                      'แจ้งเตือน',
+                      style: TextStyle(color: Colors.white, fontSize: 18),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                titlePadding: const EdgeInsets.all(0),
+                content: const Text(
+                  'ท่านไม่ได้ชำระเงินภายในระยะเวลาที่กำหนด',
+                  style: TextStyle(fontSize: 14),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    onPressed: () {
+                      cancelOrder();
+                    },
+                    child: const Text(
+                      'ยกเลิกคำสั่งซิ้อ',
+                      style: TextStyle(color: Colors.red, fontSize: 14),
+                    ),
+                  ),
+                  TextButton(
+                    // onPressed: () => Navigator.pop(context, 'OK'),
+                    onPressed: () {
+                      QRPayment();
+                    },
+                    child: const Text('ชำระเงินอีกครั้ง'),
+                  ),
+                ],
+              ),
+            );
+          });
+        }
+      });
+    });
+  }
 
   void cancelOrder() async {
     SharedPreferences localStorage = await SharedPreferences.getInstance();
@@ -429,7 +431,7 @@ class _SecondState extends State<SecondScreen> {
 
   @override
   void dispose() {
-    // _timer.cancel();
+    _timer.cancel();
     super.dispose();
   }
 
@@ -735,87 +737,80 @@ class _SecondState extends State<SecondScreen> {
                                         ),
                                       ]),
                                     ),
-                                    // Container(
-                                    //   alignment: Alignment.topCenter,
-                                    //   padding: const EdgeInsets.only(top: 20),
-                                    //   child: Column(
-                                    //     children: <Widget>[
-                                    //       Text(
-                                    //         "ชำระเงินภายใน  $_timerText ",
-                                    //         style: const TextStyle(
-                                    //             fontWeight: FontWeight.w200,
-                                    //             fontSize: 15,
-                                    //             color: Colors.yellow),
-                                    //       ),
-                                    //     ],
-                                    //   ),
-                                    // ),
-                                    // Container(
-                                    //   alignment: Alignment.topCenter,
-                                    //   padding: const EdgeInsets.only(top: 10),
-                                    //   child: Column(
-                                    //     children: <Widget>[
-                                    //       Image.asset(
-                                    //           "assets/images/qr_header.jpg",
-                                    //           width: 250.0),
-                                    //     ],
-                                    //   ),
-                                    // ),
-                                    // Container(
-                                    //   alignment: Alignment.topCenter,
-                                    //   child: Column(
-                                    //     children: [
-                                    //       QrImage(
-                                    //         backgroundColor: Colors.white,
-                                    //         data: qr.toString(),
-                                    //         version: QrVersions.auto,
-                                    //         size: 250.0,
-                                    //         errorCorrectionLevel:
-                                    //             QrErrorCorrectLevel.L,
-                                    //         // embeddedImage: const AssetImage(
-                                    //         //     "assets/images/qr_logo.png"),
-                                    //         // embeddedImageStyle:  QrEmbeddedImageStyle( size: const Size(50, 50),
-                                    //         // ),
-                                    //       ),
-                                    //     ],
-                                    //   ),
-                                    // ),
-                                    // Container(
-                                    //   alignment: Alignment.topCenter,
-                                    //   child: Column(
-                                    //     children: <Widget>[
-                                    //       Image.asset(
-                                    //           "assets/images/qr_footer.png",
-                                    //           width: 250.0),
-                                    //     ],
-                                    //   ),
-                                    // ),
                                     Container(
                                       alignment: Alignment.topCenter,
-                                      padding: const EdgeInsets.only(
-                                          top: 260, left: 10, bottom: 38),
-                                      child: Column(children: [
-                                        ElevatedButton(
-                                          style: ElevatedButton.styleFrom(
-                                            foregroundColor: Colors.white,
-                                            backgroundColor: kcPrimaryColor,
-                                            shadowColor: Colors.redAccent,
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                        32.0)),
-                                            minimumSize: const Size(
-                                                200, 40), //////// HERE
+                                      padding: const EdgeInsets.only(top: 20),
+                                      child: Column(
+                                        children: <Widget>[
+                                          Text(
+                                            "ชำระเงินภายใน  $_timerText ",
+                                            style: const TextStyle(
+                                                fontWeight: FontWeight.w200,
+                                                fontSize: 15,
+                                                color: Colors.yellow),
                                           ),
-                                          onPressed: () {
-                                            _checkCallback();
-                                          },
-                                          child: const Text('เสร็จสิ้น',
-                                              style: TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 18)),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      alignment: Alignment.topCenter,
+                                      padding: const EdgeInsets.only(top: 10),
+                                      child: Column(
+                                        children: <Widget>[
+                                          Image.asset(
+                                              "assets/images/qr_header.jpg",
+                                              width: 250.0),
+                                        ],
+                                      ),
+                                    ),
+                                    Visibility(
+                                      visible: _currentSecond >= _maxSeconds
+                                          ? true
+                                          : false,
+                                      child: Container(
+                                        alignment: Alignment.topCenter,
+                                        child: Column(
+                                          children: <Widget>[
+                                            Image.asset(
+                                                "assets/images/hide_qr.jpg",
+                                                width: 250.0),
+                                          ],
                                         ),
-                                      ]),
+                                      ),
+                                    ),
+                                    Visibility(
+                                      visible: _currentSecond >= _maxSeconds
+                                          ? false
+                                          : true,
+                                      child: Container(
+                                        alignment: Alignment.topCenter,
+                                        child: Column(
+                                          children: [
+                                            QrImage(
+                                              backgroundColor: Colors.white,
+                                              data: qr.toString(),
+                                              version: QrVersions.auto,
+                                              size: 250.0,
+                                              errorCorrectionLevel:
+                                                  QrErrorCorrectLevel.L,
+                                              // embeddedImage: const AssetImage(
+                                              //     "assets/images/qr_logo.png"),
+                                              // embeddedImageStyle:  QrEmbeddedImageStyle( size: const Size(50, 50),
+                                              // ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    Container(
+                                      alignment: Alignment.topCenter,
+                                      child: Column(
+                                        children: <Widget>[
+                                          Image.asset(
+                                              "assets/images/qr_footer.png",
+                                              width: 250.0),
+                                        ],
+                                      ),
                                     ),
                                     Container(
                                       alignment: Alignment.topCenter,
@@ -1032,7 +1027,7 @@ class _SecondState extends State<SecondScreen> {
                                                         TextButton(
                                                           onPressed: () {
                                                             setState(() {
-                                                              // _timer.cancel();
+                                                              _timer.cancel();
                                                               cancelOrder();
                                                             });
                                                           },

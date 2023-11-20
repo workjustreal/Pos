@@ -27,7 +27,7 @@ class _LoginState extends State<Body> {
   bool _isLoading = false;
   final now = DateTime.now();
   Userlogin userlogin = Userlogin(
-      email: 'pos03',
+      email: 'pos02',
       password: '',
       is_role: '1',
       order_date: '',
@@ -56,7 +56,7 @@ class _LoginState extends State<Body> {
           await SharedPreferences.getInstance();
       // Map data = {'email': '550097', 'password': 'k'};
       Map data = {
-        'email': 'pos03',
+        'email': 'pos02',
         'password': password,
         'is_role': '1',
         'order_date': DateFormat('yyyy-MM-dd').format(now),
