@@ -50,7 +50,7 @@ class _SecondState extends State<SecondScreen> {
   var coreItem = StringBuffer();
   var coreTotal = StringBuffer();
 
-  final _maxSeconds = 30;
+  final _maxSeconds = 180;
   int _currentSecond = 0;
   late Timer _timer;
 

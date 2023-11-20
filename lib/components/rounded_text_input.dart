@@ -18,7 +18,7 @@ class RoundedInputField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFieldContainer(
       child: TextField(
-        controller: TextEditingController(text: "pos02"),
+        controller: TextEditingController(text: "pos01"),
         readOnly :true,
         onChanged: onChanged,
         cursorColor: kcPrimaryColor,
