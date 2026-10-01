@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:kacee_pos/Screen/Login/login_screen.dart';
 import 'package:kacee_pos/Screen/Pos/components/background.dart';
 import 'package:kacee_pos/Screen/Pos/second_screen.dart';
-import 'package:kacee_pos/components/aurora_background.dart';
+import 'package:kacee_pos/components/a3_dialog.dart';
+import 'package:kacee_pos/components/a3_layout.dart';
 import 'package:kacee_pos/components/dailog_container.dart';
 import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:kacee_pos/constants.dart';
@@ -45,7 +46,7 @@ class _MainState extends State<MainScreen> {
       self_name,
       machine_code;
 
-  final double _height = 80;
+  final double _height = 64; // cart row height (ListView itemExtent)
   void _scrollToIndex(index) {
     // Guard against two crash cases:
     //  1. ListView isn't in the tree yet (empty cart shows _emptyCart instead)
@@ -113,11 +114,11 @@ class _MainState extends State<MainScreen> {
     if (ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: kcSurfaceColorHi,
+          backgroundColor: kcDarkColor,
           action: SnackBarAction(
               label: 'ปิด', textColor: kcAccentOrange, onPressed: () {}),
           content: const Text('ปริ้นใบเสร็จเรียบร้อย!',
-              style: TextStyle(color: kcTextPrimary, fontFamily: 'Kanit')),
+              style: TextStyle(color: Colors.white, fontFamily: 'Kanit')),
           duration: const Duration(milliseconds: 1500),
           width: 320.0,
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -247,40 +248,16 @@ class _MainState extends State<MainScreen> {
     return false;
   }
 
-  Future<bool> showExitPopup() async {
-    return await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: kcSurfaceColor,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(kcRadiusLg)),
-            title: const Text('ออกจากระบบ',
-                style: TextStyle(color: kcTextPrimary, fontFamily: 'Kanit')),
-            content: const Text('คุณต้องการออกจากระบบใช่หรือไม่?',
-                style: TextStyle(color: kcTextSecondary, fontFamily: 'Kanit')),
-            actions: [
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: kcSuccessColor,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20.0))),
-                child: const Text('ไม่'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: kcDangerColor,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20.0))),
-                child: const Text('ใช่'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+  Future<bool> showExitPopup() {
+    return showKcConfirm(
+      context,
+      icon: Icons.logout_rounded,
+      title: 'ออกจากระบบ',
+      message: 'คุณต้องการออกจากระบบใช่หรือไม่?',
+      cancelLabel: 'ไม่',
+      confirmLabel: 'ใช่',
+      destructive: true,
+    );
   }
 
   void _showAlertDialog(BuildContext context, String message) {
@@ -443,500 +420,383 @@ class _MainState extends State<MainScreen> {
   // UI
   // ------------------------------------------------------------------------
 
+  /// The cart row matching the last scanned barcode, shown in the spotlight
+  /// card. Null before the first scan or while the add-item round-trip is
+  /// still pending.
+  Product? get _lastScanned {
+    final list = productList;
+    if (list == null || _barcode == null) return null;
+    for (final p in list) {
+      if (p.barcode == _barcode) return p;
+    }
+    return null;
+  }
+
+  void _onBarcodeScanned(String sbarcode) {
+    if (!visible) return;
+
+    // QR / non-barcode guard: scanners on Sunmi sometimes lock onto
+    // a QR code printed next to the real product barcode. Retail
+    // product codes are 1–14 digits (EAN-8 / UPC-A / EAN-13 /
+    // GTIN-14). Anything else — URLs, mixed chars, very long
+    // strings — is almost certainly a QR / non-product scan.
+    // Show a clear message instead of sending the garbage to the
+    // backend and getting a confusing "ไม่พบสินค้า" response.
+    if (!RegExp(r'^\d{1,14}$').hasMatch(sbarcode)) {
+      _showAlertDialog(
+          context, "กรุณาสแกนเฉพาะบาร์โค้ดสินค้า (ไม่ใช่ QR code)");
+      player.play(AssetSource('sound/noproduct.mp3'));
+      return;
+    }
+
+    // Normalize barcode then fire scan OUTSIDE setState.
+    String barcode;
+    if (sbarcode != '0088300607402' && sbarcode != '047469058654') {
+      barcode = (int.tryParse(sbarcode) ?? 0).toString();
+    } else {
+      barcode = sbarcode;
+    }
+    setState(() {
+      _barcode = barcode;
+      _selectItem = 1;
+    });
+    searchProduct(barcode);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final formattedDate = DateFormat('EEEEE d MMM yyyy').format(DateTime.now());
+    final formattedDate = DateFormat('d MMM yyyy').format(DateTime.now());
     return WillPopScope(
       onWillPop: _onBackPressed,
       child: Scaffold(
         backgroundColor: kcInkColor,
         body: Background(
           child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _topBar(formattedDate),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _actionRail(),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 12, child: _productPanel()),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 8, child: _scanAndPayPanel()),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _topBar(String formattedDate) {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-      radius: kcRadiusLg,
-      // Left group expands/shrinks freely. Pills on the right are laid out
-      // FIRST at their intrinsic width so they always show their full text —
-      // the left group then takes whatever's left over (with the title /
-      // date truncating via ellipsis if the screen is narrow).
-      child: Row(
-        children: [
-          Expanded(
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    gradient: kcBrandGradientSoft,
-                    borderRadius: BorderRadius.circular(kcRadiusPill),
-                    border: Border.all(color: kcAccentOrange.withOpacity(0.3)),
-                  ),
-                  child: const Text(
-                    'KACEEPOS  2.0',
-                    style: TextStyle(
-                      fontFamily: 'Kanit',
-                      fontSize: 11,
-                      color: kcAccentOrange,
-                      letterSpacing: 3,
+                KcTopBar(
+                  info: '${shop_name ?? "—"} · เครื่อง ${machine_code ?? "—"}'
+                      ' · $formattedDate',
+                  actions: [
+                    KcOutlineButton(
+                      label: 'เคลียร์ตะกร้า',
+                      icon: Icons.remove_shopping_cart_outlined,
+                      onTap: _showClearCartDialog,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                const Flexible(
-                  child: Text(
-                    'SELF CHECKOUT',
-                    style: TextStyle(
-                      fontFamily: 'Kanit',
-                      fontSize: 20,
-                      color: kcTextPrimary,
-                      letterSpacing: 2,
-                    ),
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                const Icon(Icons.circle, color: kcStrokeColor, size: 4),
-                const SizedBox(width: 14),
-                const Icon(Icons.calendar_today_rounded,
-                    size: 14, color: kcTextMuted),
-                const SizedBox(width: 6),
-                Flexible(
-                  child: Text(
-                    formattedDate,
-                    style: const TextStyle(
-                      fontFamily: 'Kanit',
-                      fontSize: 13,
-                      color: kcTextSecondary,
-                    ),
-                    softWrap: false,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          _statusPill(Icons.storefront_rounded, shop_name ?? "—"),
-          const SizedBox(width: 8),
-          _statusPill(Icons.monitor_rounded, 'เครื่อง ${machine_code ?? "—"}'),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusPill(IconData icon, String text) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: kcSurfaceColorHi.withOpacity(0.65),
-        borderRadius: BorderRadius.circular(kcRadiusPill),
-        border: Border.all(color: kcStrokeColor),
-      ),
-      child: Row(
-        // mainAxisSize.min + softWrap:false → the pill always grows to its
-        // text's full intrinsic width on one line, so long machine codes /
-        // shop names never get clipped against the frame.
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 20,
-            height: 20,
-            decoration: const BoxDecoration(
-              gradient: kcBrandGradient,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: Colors.white, size: 12),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            softWrap: false,
-            overflow: TextOverflow.visible,
-            maxLines: 1,
-            style: const TextStyle(
-              fontFamily: 'Kanit',
-              color: kcTextSecondary,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _actionRail() {
-    return SizedBox(
-      width: 72,
-      child: Column(
-        children: [
-          _railButton(
-            icon: Icons.shopping_bag_rounded,
-            tooltip: 'หน้าหลัก',
-            onTap: () {},
-            highlight: true,
-          ),
-          const SizedBox(height: 12),
-          _railButton(
-            icon: Icons.remove_shopping_cart_rounded,
-            tooltip: 'เคลียร์ตะกร้า',
-            onTap: _showClearCartDialog,
-          ),
-          const SizedBox(height: 12),
-          _railButton(
-            icon: Icons.print_rounded,
-            tooltip: 'พิมพ์อีกครั้ง',
-            onTap: _reprintReceipt,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _railButton({
-    required IconData icon,
-    required String tooltip,
-    required VoidCallback onTap,
-    bool highlight = false,
-  }) {
-    return Tooltip(
-      message: tooltip,
-      child: Container(
-        width: 72,
-        height: 72,
-        decoration: BoxDecoration(
-          gradient: highlight ? kcBrandGradient : null,
-          color: highlight ? null : kcSurfaceColorHi.withOpacity(0.55),
-          borderRadius: BorderRadius.circular(kcRadiusMd),
-          border: Border.all(
-            color: highlight ? Colors.transparent : kcStrokeColor,
-            width: 1,
-          ),
-          boxShadow: highlight ? kcShadowGlow : null,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(kcRadiusMd),
-            child: Center(
-              child: Icon(
-                icon,
-                color: highlight ? Colors.white : kcAccentOrange,
-                size: 28,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showClearCartDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 360),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [kcSurfaceColorHi, kcSurfaceColor],
-            ),
-            borderRadius: BorderRadius.circular(kcRadiusLg),
-            border: Border.all(color: kcStrokeColor),
-            boxShadow: kcShadowSoft,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-                decoration: const BoxDecoration(
-                  gradient: kcBrandGradient,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(kcRadiusLg),
-                    topRight: Radius.circular(kcRadiusLg),
-                  ),
-                ),
-                child: Row(
-                  children: const [
-                    Icon(Icons.remove_shopping_cart_rounded,
-                        color: Colors.white),
-                    SizedBox(width: 10),
-                    Text(
-                      'เคลียร์ตะกร้า',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontFamily: 'Kanit',
-                          fontWeight: FontWeight.w500),
+                    KcOutlineButton(
+                      label: 'พิมพ์ซ้ำ',
+                      icon: Icons.print_outlined,
+                      onTap: _reprintReceipt,
                     ),
                   ],
                 ),
-              ),
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Text(
-                  'ต้องการเคลียร์ตะกร้าใช่ไหม?',
-                  style: TextStyle(
-                      color: kcTextSecondary,
-                      fontSize: 14,
-                      fontFamily: 'Kanit'),
+                Expanded(
+                  child: KcSplitLayout(
+                    side: _scanPanel(),
+                    main: _cartPanel(),
+                  ),
                 ),
-              ),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('ยกเลิก',
-                          style: TextStyle(
-                              color: kcDangerColor,
-                              fontSize: 15,
-                              fontFamily: 'Kanit')),
-                    ),
-                  ),
-                  Container(width: 1, height: 50, color: kcStrokeColor),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () {
-                        clearItem();
-                        Navigator.pop(context, false);
-                      },
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text('ตกลง',
-                          style: TextStyle(
-                              color: kcAccentOrange,
-                              fontSize: 15,
-                              fontFamily: 'Kanit',
-                              fontWeight: FontWeight.w500)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _productPanel() {
-    return GlassCard(
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
-      radius: kcRadiusLg,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.receipt_long_rounded,
-                  color: kcAccentOrange, size: 22),
-              const SizedBox(width: 8),
-              const Text(
-                'รายการสินค้า',
-                style: TextStyle(
+  Future<void> _showClearCartDialog() async {
+    final ok = await showKcConfirm(
+      context,
+      icon: Icons.remove_shopping_cart_outlined,
+      title: 'เคลียร์ตะกร้า',
+      message: 'ต้องการเคลียร์ตะกร้าใช่ไหม? สินค้าทั้งหมดจะถูกลบออก',
+      confirmLabel: 'เคลียร์ตะกร้า',
+      destructive: true,
+    );
+    if (ok) clearItem();
+  }
+
+  // --- Side panel: last-scanned spotlight, totals, pay ---------------------
+
+  Widget _scanPanel() {
+    final priceText = total_price ?? "0.00";
+    return VisibilityDetector(
+      key: const Key('visible-detector-key'),
+      onVisibilityChanged: (VisibilityInfo info) {
+        visible = info.visibleFraction > 0;
+      },
+      child: BarcodeKeyboardListener(
+        bufferDuration: const Duration(milliseconds: 100),
+        onBarcodeScanned: _onBarcodeScanned,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const KcSectionLabel('เพิ่งสแกน'),
+            _spotlightCard(),
+            const SizedBox(height: 12),
+            const Row(
+              children: [
+                KcDot(color: kcSuccessDotColor),
+                SizedBox(width: 8),
+                Text('พร้อมสแกน',
+                    style: TextStyle(
+                        fontFamily: 'Kanit',
+                        fontSize: 13,
+                        color: kcSuccessColor)),
+              ],
+            ),
+            const Spacer(),
+            KcInfoRow('เลขคำสั่งซื้อ', order_number ?? '—'),
+            KcInfoRow('จำนวนสินค้า', '${total_qty ?? "0"} ชิ้น'),
+            const SizedBox(height: 14),
+            const Text('ยอดรวม', style: kcLabelStyle),
+            const SizedBox(height: 2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '฿ $priceText',
+                style: const TextStyle(
                   fontFamily: 'Kanit',
-                  fontSize: 20,
+                  fontSize: 46,
+                  height: 1.1,
+                  fontWeight: FontWeight.w500,
                   color: kcTextPrimary,
                 ),
               ),
-              const Spacer(),
-              if (productList != null && productList!.isNotEmpty)
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: kcSurfaceColorHi.withOpacity(0.6),
-                    borderRadius: BorderRadius.circular(kcRadiusPill),
-                    border: Border.all(color: kcStrokeColor),
-                  ),
-                  child: Text(
-                    '${productList!.length} รายการ',
-                    style: const TextStyle(
-                        fontFamily: 'Kanit',
-                        color: kcTextSecondary,
-                        fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            KcPrimaryButton(
+              label: 'ชำระเงิน',
+              icon: Icons.qr_code_2_rounded,
+              onTap: _canPay ? paymentProcess : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _spotlightCard() {
+    final p = _lastScanned;
+    return Container(
+      constraints: const BoxConstraints(minHeight: 168),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: kcSurfaceColor,
+        borderRadius: BorderRadius.circular(kcRadiusMd),
+        border: Border.all(color: p == null ? kcStrokeColor : kcAccentOrange),
+      ),
+      child: p == null ? _spotlightEmpty() : _spotlightProduct(p),
+    );
+  }
+
+  Widget _spotlightEmpty() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.qr_code_scanner_rounded,
+            color: kcAccentOrange, size: 34),
+        const SizedBox(height: 10),
+        const Text('สแกนบาร์โค้ดสินค้า',
+            style: TextStyle(
+                fontFamily: 'Kanit',
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                color: kcTextPrimary)),
+        const SizedBox(height: 2),
+        Text(
+          _barcode == null
+              ? 'วางบาร์โค้ดใต้เครื่องสแกนได้เลย'
+              : 'บาร์โค้ดล่าสุด $_barcode',
+          style: const TextStyle(
+              fontFamily: 'Kanit', fontSize: 14, color: kcTextMuted),
+        ),
+      ],
+    );
+  }
+
+  Widget _spotlightProduct(Product p) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.check_circle_outline_rounded,
+                color: kcSuccessColor, size: 18),
+            SizedBox(width: 6),
+            Text('เพิ่มลงตะกร้าแล้ว',
+                style: TextStyle(
+                    fontFamily: 'Kanit', fontSize: 13, color: kcSuccessColor)),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          p.name,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            fontFamily: 'Kanit',
+            fontSize: 22,
+            height: 1.25,
+            fontWeight: FontWeight.w500,
+            color: kcTextPrimary,
+          ),
+        ),
+        Text(p.barcode.isNotEmpty ? p.barcode : p.sku, style: kcCaptionStyle),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text('฿ ${p.price}',
+                style: const TextStyle(
+                    fontFamily: 'Kanit',
+                    fontSize: 28,
+                    height: 1.0,
+                    color: kcAccentOrange)),
+            const Spacer(),
+            Text('ในตะกร้า x${p.qty}',
+                style: const TextStyle(
+                    fontFamily: 'Kanit', fontSize: 14, color: kcTextMuted)),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // --- Main panel: cart list -----------------------------------------------
+
+  Widget _cartPanel() {
+    final items = productList ?? const <Product>[];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        KcSectionLabel(
+          'ตะกร้าของคุณ',
+          trailing: Text('${items.length} รายการ', style: kcLabelStyle),
+        ),
+        _cartHeader(),
+        Expanded(
+          child: items.isEmpty
+              ? _emptyCart()
+              : Scrollbar(
+                  thumbVisibility: true,
+                  controller: scollBarController,
+                  child: ListView.builder(
+                    controller: scollBarController,
+                    // Fixed row height so _scrollToIndex lands exactly on
+                    // the scanned row.
+                    itemExtent: _height,
+                    itemCount: items.length,
+                    itemBuilder: (context, index) => _cartRow(items[index]),
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: kcInkColor.withOpacity(0.4),
-              borderRadius: BorderRadius.circular(kcRadiusSm),
-            ),
-            child: Row(
-              children: const [
-                Expanded(
-                    flex: 2, child: Text("รหัสสินค้า", style: kcLabelStyle)),
-                Expanded(flex: 3, child: Text("ชื่อ", style: kcLabelStyle)),
-                Expanded(
-                    flex: 1,
-                    child: Text("ราคา",
-                        style: kcLabelStyle, textAlign: TextAlign.center)),
-                Expanded(
-                    flex: 1,
-                    child: Text("จำนวน",
-                        style: kcLabelStyle, textAlign: TextAlign.center)),
-                Expanded(
-                    flex: 2,
-                    child: Text("ราคารวม",
-                        style: kcLabelStyle, textAlign: TextAlign.right)),
-                SizedBox(width: 36),
+        ),
+      ],
+    );
+  }
+
+  static const _colPrice = 90.0;
+  static const _colQty = 80.0;
+  static const _colTotal = 100.0;
+  static const _colDelete = 52.0;
+
+  Widget _cartHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: kcStrokeColor)),
+      ),
+      child: const Row(
+        children: [
+          Expanded(child: Text('สินค้า', style: kcLabelStyle)),
+          SizedBox(
+              width: _colPrice,
+              child: Text('ราคา',
+                  style: kcLabelStyle, textAlign: TextAlign.right)),
+          SizedBox(
+              width: _colQty,
+              child: Text('จำนวน',
+                  style: kcLabelStyle, textAlign: TextAlign.center)),
+          SizedBox(
+              width: _colTotal,
+              child: Text('รวม',
+                  style: kcLabelStyle, textAlign: TextAlign.right)),
+          SizedBox(width: _colDelete),
+        ],
+      ),
+    );
+  }
+
+  Widget _cartRow(Product p) {
+    final selected = p.barcode == '$_barcode';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: selected ? kcAccentTint : null,
+        border: const Border(bottom: BorderSide(color: kcStrokeColorSoft)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  p.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontFamily: 'Kanit', fontSize: 16, color: kcTextPrimary),
+                ),
+                Text(
+                  selected ? 'เพิ่งสแกน · ${p.sku}' : p.sku,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontFamily: 'Kanit',
+                      fontSize: 12,
+                      color: selected ? kcAccentOrange : kcTextMuted),
+                ),
               ],
             ),
           ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: productList == null || productList!.isEmpty
-                ? _emptyCart()
-                : Scrollbar(
-                    thumbVisibility: true,
-                    controller: scollBarController,
-                    child: ListView.separated(
-                      controller: scollBarController,
-                      scrollDirection: Axis.vertical,
-                      itemCount: productList!.length,
-                      separatorBuilder: (_, __) => const Divider(
-                          color: kcStrokeColorSoft, height: 1, thickness: 1),
-                      itemBuilder: (context, index) {
-                        final p = productList![index];
-                        final selected = p.barcode == '$_barcode';
-                        return Container(
-                          decoration: BoxDecoration(
-                            gradient: selected ? kcBrandGradientSoft : null,
-                            borderRadius: BorderRadius.circular(kcRadiusSm),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 10),
-                          child: Row(children: [
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                p.sku,
-                                style: const TextStyle(
-                                    fontFamily: 'Kanit',
-                                    fontWeight: FontWeight.w300,
-                                    fontSize: 12,
-                                    color: kcTextMuted),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                p.name,
-                                style: const TextStyle(
-                                    fontFamily: 'Kanit',
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 13,
-                                    color: kcTextPrimary),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Text(
-                                p.price,
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                    fontFamily: 'Kanit',
-                                    fontWeight: FontWeight.w300,
-                                    fontSize: 12,
-                                    color: kcTextSecondary),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 1,
-                              child: Container(
-                                alignment: Alignment.center,
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 4, horizontal: 8),
-                                decoration: BoxDecoration(
-                                  color: kcSurfaceColorHi.withOpacity(0.7),
-                                  borderRadius:
-                                      BorderRadius.circular(kcRadiusPill),
-                                ),
-                                child: Text(
-                                  p.qty,
-                                  style: const TextStyle(
-                                      fontFamily: 'Kanit',
-                                      fontWeight: FontWeight.w500,
-                                      fontSize: 12,
-                                      color: kcAccentOrange),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                p.totalprice,
-                                textAlign: TextAlign.right,
-                                style: const TextStyle(
-                                    fontFamily: 'Kanit',
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 13,
-                                    color: kcTextPrimary),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                  minWidth: 32, minHeight: 32),
-                              icon: const Icon(Icons.delete_outline_rounded,
-                                  color: kcDangerColor, size: 20),
-                              onPressed: () {
-                                delItem(p.id.toString(), p.sku);
-                              },
-                            ),
-                          ]),
-                        );
-                      },
-                    ),
-                  ),
+          SizedBox(
+            width: _colPrice,
+            child: Text(p.price,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                    fontFamily: 'Kanit', fontSize: 15, color: kcTextSecondary)),
+          ),
+          SizedBox(
+            width: _colQty,
+            child: Text(p.qty,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    fontFamily: 'Kanit', fontSize: 16, color: kcTextPrimary)),
+          ),
+          SizedBox(
+            width: _colTotal,
+            child: Text(p.totalprice,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                    fontFamily: 'Kanit',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    color: kcTextPrimary)),
+          ),
+          SizedBox(
+            width: _colDelete,
+            child: IconButton(
+              tooltip: 'ลบรายการ',
+              icon: const Icon(Icons.delete_outline_rounded,
+                  color: kcDangerColor, size: 22),
+              onPressed: () => delItem(p.id.toString(), p.sku),
+            ),
           ),
         ],
       ),
@@ -944,346 +804,20 @@ class _MainState extends State<MainScreen> {
   }
 
   Widget _emptyCart() {
-    return Center(
+    return const Center(
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(colors: [
-                kcAccentOrange.withOpacity(0.15),
-                Colors.transparent
-              ]),
-            ),
-            child: const Icon(
-              Icons.shopping_bag_outlined,
-              color: kcAccentOrange,
-              size: 40,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            'ตะกร้ายังว่าง',
-            style: TextStyle(
-              fontFamily: 'Kanit',
-              fontSize: 16,
-              color: kcTextSecondary,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'สแกนสินค้าด้านขวาเพื่อเพิ่มลงตะกร้า',
-            style: TextStyle(
-              fontFamily: 'Kanit',
-              fontSize: 12,
-              color: kcTextMuted,
-            ),
-          ),
+          Icon(Icons.shopping_bag_outlined, color: kcTextFaint, size: 52),
+          SizedBox(height: 12),
+          Text('ตะกร้ายังว่าง',
+              style: TextStyle(
+                  fontFamily: 'Kanit', fontSize: 18, color: kcTextSecondary)),
+          SizedBox(height: 4),
+          Text('สแกนบาร์โค้ดสินค้าเพื่อเริ่มรายการ',
+              style: TextStyle(
+                  fontFamily: 'Kanit', fontSize: 14, color: kcTextMuted)),
         ],
-      ),
-    );
-  }
-
-  Widget _scanAndPayPanel() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _orderNumberCard(),
-        const SizedBox(height: 12),
-        _scanCard(),
-        const SizedBox(height: 12),
-        Expanded(child: _summaryCard()),
-      ],
-    );
-  }
-
-  Widget _orderNumberCard() {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-      radius: kcRadiusLg,
-      child: Row(
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'เลขคำสั่งซื้อ',
-                style: TextStyle(
-                  fontFamily: 'Kanit',
-                  fontSize: 11,
-                  color: kcTextMuted,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                order_number ?? "—",
-                style: const TextStyle(
-                    fontFamily: 'Kanit',
-                    fontSize: 22,
-                    color: kcTextPrimary,
-                    fontWeight: FontWeight.w400),
-              ),
-            ],
-          ),
-          const Spacer(),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: kcBrandGradientSoft,
-              borderRadius: BorderRadius.circular(kcRadiusSm),
-              border: Border.all(color: kcAccentOrange.withOpacity(0.3)),
-            ),
-            child:
-                const Icon(Icons.tag_rounded, color: kcAccentOrange, size: 22),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _scanCard() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF2A2438), Color(0xFF1F1A2C)],
-        ),
-        borderRadius: BorderRadius.circular(kcRadiusLg),
-        border: Border.all(color: kcAccentOrange.withOpacity(0.35), width: 1),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x33F96349), blurRadius: 18, offset: Offset(0, 6)),
-        ],
-      ),
-      child: VisibilityDetector(
-        onVisibilityChanged: (VisibilityInfo info) {
-          visible = info.visibleFraction > 0;
-        },
-        key: const Key('visible-detector-key'),
-        child: BarcodeKeyboardListener(
-          bufferDuration: const Duration(milliseconds: 100),
-          onBarcodeScanned: (sbarcode) {
-            if (!visible) return;
-
-            // QR / non-barcode guard: scanners on Sunmi sometimes lock onto
-            // a QR code printed next to the real product barcode. Retail
-            // product codes are 1–14 digits (EAN-8 / UPC-A / EAN-13 /
-            // GTIN-14). Anything else — URLs, mixed chars, very long
-            // strings — is almost certainly a QR / non-product scan.
-            // Show a clear message instead of sending the garbage to the
-            // backend and getting a confusing "ไม่พบสินค้า" response.
-            if (!RegExp(r'^\d{1,14}$').hasMatch(sbarcode)) {
-              _showAlertDialog(context,
-                  "กรุณาสแกนเฉพาะบาร์โค้ดสินค้า (ไม่ใช่ QR code)");
-              player.play(AssetSource('sound/noproduct.mp3'));
-              return;
-            }
-
-            // Normalize barcode then fire scan OUTSIDE setState.
-            String barcode;
-            if (sbarcode != '0088300607402' && sbarcode != '047469058654') {
-              barcode = (int.tryParse(sbarcode) ?? 0).toString();
-            } else {
-              barcode = sbarcode;
-            }
-            setState(() {
-              _barcode = barcode;
-              _selectItem = 1;
-            });
-            searchProduct(barcode);
-          },
-          child: Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  gradient: kcBrandGradient,
-                  borderRadius: BorderRadius.circular(kcRadiusSm),
-                  boxShadow: kcShadowGlow,
-                ),
-                child: const Icon(
-                  Icons.qr_code_scanner_rounded,
-                  color: Colors.white,
-                  size: 26,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'สแกนบาร์โค้ดสินค้า',
-                      style: TextStyle(
-                        fontFamily: 'Kanit',
-                        fontSize: 11,
-                        color: kcTextMuted,
-                        letterSpacing: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _barcode == null ? 'พร้อมสแกน...' : _barcode!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontFamily: 'Kanit',
-                        fontSize: 18,
-                        color:
-                            _barcode == null ? kcTextSecondary : kcTextPrimary,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Pulsing indicator dot
-              Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: kcSuccessColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                        color: Color(0x803DD68C),
-                        blurRadius: 8,
-                        spreadRadius: 1),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _summaryCard() {
-    final qtyText = total_qty ?? "0";
-    final priceText = total_price ?? "0.00";
-    return GlassCard(
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 22),
-      radius: kcRadiusLg,
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'จำนวนสินค้า',
-                style: TextStyle(
-                    fontFamily: 'Kanit', fontSize: 14, color: kcTextSecondary),
-              ),
-              Text(
-                qtyText,
-                style: const TextStyle(
-                    fontFamily: 'Kanit',
-                    fontSize: 22,
-                    color: kcTextPrimary,
-                    fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Container(
-            height: 1,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  Colors.transparent,
-                  kcStrokeColor,
-                  kcStrokeColor,
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          // The big gradient total
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'ยอดรวม',
-                style: TextStyle(
-                    fontFamily: 'Kanit',
-                    fontSize: 12,
-                    color: kcTextMuted,
-                    letterSpacing: 2),
-              ),
-              const SizedBox(height: 6),
-              FittedBox(
-                fit: BoxFit.scaleDown,
-                child: ShaderMask(
-                  shaderCallback: (bounds) =>
-                      kcBrandGradient.createShader(bounds),
-                  child: Text(
-                    '฿ $priceText',
-                    style: const TextStyle(
-                      fontFamily: 'Kanit',
-                      fontSize: 46,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.white,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-          _payButton(),
-        ],
-      ),
-    );
-  }
-
-  Widget _payButton() {
-    final enabled = _canPay;
-    return Opacity(
-      opacity: enabled ? 1.0 : 0.45,
-      child: Container(
-        width: double.infinity,
-        height: 64,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(kcRadiusPill),
-          gradient: kcBrandGradient,
-          boxShadow: enabled ? kcShadowGlow : null,
-        ),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(kcRadiusPill),
-            onTap: enabled ? paymentProcess : null,
-            splashColor: Colors.white24,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: const [
-                Icon(Icons.qr_code_2_rounded, color: Colors.white, size: 24),
-                SizedBox(width: 10),
-                Text(
-                  'ชำระเงิน',
-                  style: TextStyle(
-                    fontFamily: 'Kanit',
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

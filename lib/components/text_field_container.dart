@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kacee_pos/constants.dart';
 
+/// White input box with a 1px stroke. Fills the width its parent gives it.
 class TextFieldContainer extends StatelessWidget {
   final Widget child;
   const TextFieldContainer({
@@ -10,19 +11,13 @@ class TextFieldContainer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Size size = MediaQuery.of(context).size;
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
-      width: size.width * 0.28,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      width: double.infinity,
       decoration: BoxDecoration(
-        color: kcSurfaceColorHi.withOpacity(0.85),
-        borderRadius: BorderRadius.circular(kcRadiusPill),
-        border: Border.all(color: kcStrokeColor, width: 1),
-        boxShadow: const [
-          BoxShadow(
-              color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 6)),
-        ],
+        color: kcSurfaceColor,
+        borderRadius: BorderRadius.circular(kcRadiusMd),
+        border: Border.all(color: kcStrokeColorStrong, width: 1),
       ),
       child: child,
     );

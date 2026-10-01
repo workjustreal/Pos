@@ -106,9 +106,13 @@ flutter:
   fonts:
     - family: Kanit
       fonts:
+        - asset: assets/google_fonts/Kanit-Light.ttf
+          weight: 300
         - asset: assets/google_fonts/Kanit-Regular.ttf
         - asset: assets/google_fonts/Kanit-Italic.ttf
           style: italic
+        - asset: assets/google_fonts/Kanit-Medium.ttf
+          weight: 500
   # fonts:
   #   - family: Schyler
   #     fonts:

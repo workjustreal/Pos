@@ -1,25 +1,26 @@
 import 'package:flutter/material.dart';
 
 // ---------------------------------------------------------------------------
-// Aurora Premium — design tokens for KACEEPOS 2.0
+// A3 Light — design tokens for KACEEPOS 2.0
 // ---------------------------------------------------------------------------
-// Legacy tokens are preserved (kcBackgroundColor, kcPrimaryColor, ...) so
-// existing references continue to work; new tokens layer on top of them.
+// White surfaces, 1px light-grey strokes, and orange used only where the
+// customer should look (pay button, totals, the item that was just scanned).
+// No glows or shadows — the shadow / gradient tokens are kept for backward
+// compatibility but resolve to flat values.
 
 // === Surface palette ===
-// Deep ink base with a faint warm-violet undertone — feels premium and warm
-// rather than the typical "tech dark grey".
-const kcInkColor = Color(0xFF0E0B16);
-const kcInkColorSoft = Color(0xFF181321);
-const kcSurfaceColor = Color(0xFF1F1A2C);
-const kcSurfaceColorHi = Color(0xFF2A2438);
-const kcSurfaceColorLo = Color(0xFF12101A);
-const kcStrokeColor = Color(0x1AFFFFFF);
-const kcStrokeColorSoft = Color(0x0DFFFFFF);
+const kcInkColor = Color(0xFFFFFFFF); // scaffold
+const kcInkColorSoft = Color(0xFFFCFCFC); // side panels
+const kcSurfaceColor = Color(0xFFFFFFFF); // cards
+const kcSurfaceColorHi = Color(0xFFF5F5F5); // chips, pressed rows
+const kcSurfaceColorLo = Color(0xFFFAFAFA);
+const kcStrokeColor = Color(0xFFEEEEEE);
+const kcStrokeColorSoft = Color(0xFFF3F3F3);
+const kcStrokeColorStrong = Color(0xFFE2E2E2);
 
 // === Legacy tokens (kept for backward compatibility) ===
 const kcBackgroundColor = kcSurfaceColor;
-const kcDarkColor = kcInkColor;
+const kcDarkColor = Color(0xFF1A1A1A);
 const kcPrimaryColor = Color(0xFFF96349);
 const kcSecondaryColor = Color(0xFFDA0041);
 const kcPrimaryLightColor = Color(0xFFFFFEFE);
@@ -29,61 +30,49 @@ const kcPurple2Color = Color(0xFFE95C73);
 
 // === Brand accents ===
 const kcAccentOrange = kcPrimaryColor;
+const kcAccentOrangeDark = Color(0xFFC2410C); // orange text on orange tint
+const kcAccentTint = Color(0xFFFFF6F3); // highlighted row / soft orange fill
 const kcAccentPink = Color(0xFFFF3D7F);
 const kcAccentAmber = Color(0xFFFFB36B);
-const kcSuccessColor = Color(0xFF3DD68C);
-const kcWarningColor = Color(0xFFFFB547);
-const kcDangerColor = Color(0xFFFF5566);
+const kcSuccessColor = Color(0xFF16A34A);
+const kcSuccessDotColor = Color(0xFF22C55E);
+const kcWarningColor = Color(0xFFD97706);
+const kcDangerColor = Color(0xFFDC2626);
+const kcDangerTint = Color(0xFFFEF2F2);
 
 // === Text palette ===
-const kcTextPrimary = Color(0xFFFFFFFF);
-const kcTextSecondary = Color(0xB3FFFFFF); // 70%
-const kcTextMuted = Color(0x80FFFFFF); // 50%
-const kcTextFaint = Color(0x4DFFFFFF); // 30%
+const kcTextPrimary = Color(0xFF1A1A1A);
+const kcTextSecondary = Color(0xFF666666);
+const kcTextMuted = Color(0xFF9A9A9A);
+const kcTextFaint = Color(0xFFBDBDBD);
 
-// === Gradients ===
+// === Gradients (flat in A3 — kept so ShaderMask / gradient users still work) ===
 const kcBrandGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [kcAccentOrange, kcAccentPink],
+  colors: [kcAccentOrange, kcAccentOrange],
 );
 
 const kcBrandGradientSoft = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Color(0x33F96349), Color(0x33FF3D7F)],
+  colors: [kcAccentTint, kcAccentTint],
 );
 
 const kcGlassGradient = LinearGradient(
-  begin: Alignment.topLeft,
-  end: Alignment.bottomRight,
-  colors: [Color(0x1FFFFFFF), Color(0x0AFFFFFF)],
+  colors: [kcSurfaceColor, kcSurfaceColor],
 );
 
 const kcAmbientGradient = RadialGradient(
-  center: Alignment(-0.7, -0.8),
-  radius: 1.4,
-  colors: [Color(0x33F96349), Color(0x00000000)],
+  colors: [Color(0x00000000), Color(0x00000000)],
 );
 
-// === Shadows ===
-const kcShadowSoft = [
-  BoxShadow(color: Color(0x33000000), blurRadius: 24, offset: Offset(0, 8)),
-];
-
-const kcShadowGlow = [
-  BoxShadow(color: Color(0x4DF96349), blurRadius: 32, offset: Offset(0, 12)),
-];
-
-const kcShadowGlowPink = [
-  BoxShadow(color: Color(0x4DFF3D7F), blurRadius: 28, offset: Offset(0, 10)),
-];
+// === Shadows (none in A3) ===
+const List<BoxShadow> kcShadowSoft = [];
+const List<BoxShadow> kcShadowGlow = [];
+const List<BoxShadow> kcShadowGlowPink = [];
 
 // === Radii ===
-const kcRadiusSm = 12.0;
-const kcRadiusMd = 18.0;
-const kcRadiusLg = 24.0;
-const kcRadiusXl = 32.0;
+const kcRadiusSm = 10.0;
+const kcRadiusMd = 12.0;
+const kcRadiusLg = 16.0;
+const kcRadiusXl = 24.0;
 const kcRadiusPill = 999.0;
 
 // === Spacing ===
@@ -99,17 +88,15 @@ const kcDisplayStyle = TextStyle(
   fontFamily: 'Kanit',
   fontSize: 44,
   height: 1.05,
-  fontWeight: FontWeight.w300,
-  letterSpacing: 0.5,
+  fontWeight: FontWeight.w500,
   color: kcTextPrimary,
 );
 
 const kcHeadlineStyle = TextStyle(
   fontFamily: 'Kanit',
   fontSize: 28,
-  height: 1.1,
-  fontWeight: FontWeight.w300,
-  letterSpacing: 0.3,
+  height: 1.15,
+  fontWeight: FontWeight.w500,
   color: kcTextPrimary,
 );
 
@@ -117,42 +104,40 @@ const kcTitleStyle = TextStyle(
   fontFamily: 'Kanit',
   fontSize: 20,
   height: 1.2,
-  fontWeight: FontWeight.w400,
+  fontWeight: FontWeight.w500,
   color: kcTextPrimary,
 );
 
 const kcBodyStyle = TextStyle(
   fontFamily: 'Kanit',
-  fontSize: 14,
+  fontSize: 15,
   height: 1.4,
-  fontWeight: FontWeight.w300,
-  color: kcTextSecondary,
+  fontWeight: FontWeight.w400,
+  color: kcTextPrimary,
 );
 
 const kcLabelStyle = TextStyle(
   fontFamily: 'Kanit',
-  fontSize: 12,
+  fontSize: 13,
   height: 1.2,
   fontWeight: FontWeight.w400,
-  letterSpacing: 1.2,
   color: kcTextMuted,
 );
 
 const kcCaptionStyle = TextStyle(
   fontFamily: 'Kanit',
-  fontSize: 11,
+  fontSize: 12,
   height: 1.2,
-  fontWeight: FontWeight.w300,
-  letterSpacing: 0.4,
+  fontWeight: FontWeight.w400,
   color: kcTextMuted,
 );
 
 // === Legacy text styles (preserved) ===
 const appBarStyle = TextStyle(fontWeight: FontWeight.normal, fontSize: 20);
 const tableH = TextStyle(
-    fontWeight: FontWeight.w500, fontSize: 15, color: Colors.white);
+    fontWeight: FontWeight.w500, fontSize: 15, color: kcTextPrimary);
 const tableB = TextStyle(
-    fontWeight: FontWeight.w200, fontSize: 13, color: Colors.white70);
+    fontWeight: FontWeight.w300, fontSize: 13, color: kcTextSecondary);
 
 // === Icons (legacy) ===
 const iconA = Icons.shopping_cart;

@@ -27,7 +27,7 @@ class RoundedInputField extends StatelessWidget {
         decoration: InputDecoration(
           icon: const Icon(
             Icons.account_circle_rounded,
-            color: kcAccentOrange,
+            color: kcTextMuted,
             size: 22,
           ),
           hintText: hintText,

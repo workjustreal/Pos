@@ -32,8 +32,8 @@ VS Code workspace: `KaceePOS.code-workspace`.
 
 ```
 lib/
-├── main.dart              # MaterialApp: dark ColorScheme, Kanit font, title 'KACEEPOS 2.0'
-├── constants.dart         # "Aurora Premium" design tokens (colors, gradients, shadows, radii, spacing, text styles)
+├── main.dart              # MaterialApp: light ColorScheme, Kanit font, title 'KACEEPOS 2.0'
+├── constants.dart         # "A3 Light" design tokens (colors, radii, spacing, text styles)
 ├── routes.dart            # '/', '/home' → WelcomeScreen; '/login' → LoginScreen
 ├── network_utils/
 │   ├── api.dart           # Network class (all HTTP calls, 15s timeout)
@@ -55,7 +55,9 @@ lib/
 │       ├── provider/provider.dart  # MyHomePageProvider — unused
 │       └── components/{background,body}.dart
 └── components/            # Reusable widgets
-    ├── aurora_background.dart      # Shared animated background (used by all Background widgets)
+    ├── a3_layout.dart              # KcTopBar, KcSplitLayout (side panel + main), KcPrimary/OutlineButton, KcInfoRow, KcProgressBar…
+    ├── a3_dialog.dart              # KcDialog, KcDialogButton, showKcConfirm() — all dialogs use these
+    ├── aurora_background.dart      # Plain white background (name kept from the old dark theme) + GlassCard
     ├── calculator_container.dart
     ├── dailog_container.dart, dailog_warning_container.dart
     ├── rounded_button*.dart        # rounded_button, _home, _logout
@@ -70,11 +72,12 @@ No state-management library. Screens are `StatefulWidget`s using `setState()`; c
 
 ### Theming (`constants.dart`)
 
-Dark "Aurora Premium" theme. Prefer the new tokens for new UI:
-- Surfaces: `kcInkColor` (scaffold), `kcSurfaceColor`, `kcSurfaceColorHi/Lo`, `kcStrokeColor`
-- Accents: `kcAccentOrange` (= `kcPrimaryColor` F96349), `kcAccentPink`, `kcAccentAmber`, `kcSuccessColor`, `kcWarningColor`, `kcDangerColor`
-- Text: `kcTextPrimary/Secondary/Muted/Faint`
-- Also `kcBrandGradient`, `kcGlassGradient`, `kcShadowSoft/Glow`, `kcRadius*`, `kcSpace*`, `kcDisplayStyle`…`kcCaptionStyle`
+White "A3 Light" theme: white surfaces, 1px light-grey strokes, no shadows or glows, and orange used only where the customer should look (pay button, totals, the just-scanned item). Every screen uses the same shape: `KcTopBar` on top, then `KcSplitLayout` with a ~32% side panel (spotlight / QR / summary) and the main content on the right.
+- Surfaces: `kcInkColor` (white scaffold), `kcInkColorSoft` (side panel tint), `kcSurfaceColor`, `kcSurfaceColorHi/Lo`, `kcStrokeColor/Soft/Strong`
+- Accents: `kcAccentOrange` (= `kcPrimaryColor` F96349), `kcAccentTint` (highlighted row), `kcSuccessColor`, `kcSuccessDotColor`, `kcWarningColor`, `kcDangerColor`, `kcDangerTint`
+- Text: `kcTextPrimary/Secondary/Muted/Faint` (dark on white)
+- Also `kcRadius*`, `kcSpace*`, `kcDisplayStyle`…`kcCaptionStyle`
+- `kcBrandGradient`, `kcGlassGradient` and `kcShadowSoft/Glow` still exist but are flat/empty. Don't build new UI on them.
 
 Legacy tokens (`kcPrimaryColor`, `kcSecondaryColor`, `kcOrangeColor`, `kcPurpleColor`, `appBarStyle`, `tableH`, `iconA`…) are kept for backward compatibility.
 
@@ -108,14 +111,15 @@ Krungsri requests are built in `KrungsriPaymentService`. They're signed with SHA
 3. **MainScreen**:
    - Calls `PrinterService().ensureConnected()` on init; loads `user/detail/` and `order/get/` (stores `order_id`).
    - `BarcodeKeyboardListener` (100ms buffer) → `order/item/add`; plays `assets/sound/noproduct.mp3` when not found; TTS reads the total via `TtsService().speakAmount()`.
+   - Side panel "spotlight" card shows the cart row whose `barcode` equals the last scan (`_lastScanned`). Cart rows have a fixed height (`_height` = 64, used as `itemExtent`) so `_scrollToIndex` lands exactly on the row. Clear cart and reprint are buttons in the top bar.
    - "Pay" runs `QRPayment()` (an `_isPaying` guard blocks double-taps). It calls `KrungsriPaymentService.precreate()`, then `pushAndRemoveUntil` to SecondScreen, passing cart snapshots (`initialProducts`, `initialTotalPrice`, `initialTotalQty`, `initialOrderNumber`, `initialOrderId`) so the list renders immediately.
 4. **SecondScreen**:
    - Loads the QR and `trxId` from prefs on its own (so the QR still shows if `order/get` fails), logs via `payment/log`, and kicks off `PrinterService().prefetchReceipt('order/receipt/$oid')`.
    - `_timer` (1s) drives the 180s countdown (`_maxSeconds = 180`); `_pollTimer` (500ms) calls `payment/complete/{order_id}`; `_isPolling`/`_finished` guard re-entrancy.
    - On timeout: two retry passes (Krungsri `trans/detail` → `payment/detail/complete/...`, plus the local callback) with a 5s loading dialog between, then TTS + timeout dialog.
-   - `_onPaymentSuccess()` navigates to EndScreen **immediately**, then prints the receipt in the background.
+   - `_onPaymentSuccess()` starts the receipt print and navigates to EndScreen **immediately**, passing the order summary and the print `Future<bool>` (`printJob`).
    - Cancel uses `order/cancel` and then `pushAndRemoveUntil` MainScreen.
-5. **EndScreen**: TTS "ขอบคุณที่ใช้บริการ", 10s countdown → `pushAndRemoveUntil` MainScreen.
+5. **EndScreen**: shows the paid summary and the live print status (from `printJob`, with `PrinterService().lastConnectError` on failure), TTS "ขอบคุณที่ใช้บริการ", 10s countdown → `pushAndRemoveUntil` MainScreen.
 
 **Back button / navigation:** After the first sale, every screen is the only route on the stack (all navigation uses `pushAndRemoveUntil`), so letting a back-press pop through closes the app. Each `onWillPop` therefore navigates explicitly and returns `false`:
 - MainScreen: confirm logout → LoginScreen
@@ -159,7 +163,7 @@ Java 17, Kotlin 1.8.22 (jvmTarget 17), multiDex on. Release builds use the **deb
 
 - `assets/images/` — UI images (welcome, QR header/footer/logo, receipt templates, etc.)
 - `assets/icons/` — launcher icon source `logo.png` (flutter_launcher_icons, `min_sdk_android: 21`)
-- `assets/google_fonts/` — Kanit (only Regular + Italic registered in pubspec)
+- `assets/google_fonts/` — Kanit (Light 300, Regular, Italic, Medium 500 registered in pubspec)
 - `assets/sound/` — `noproduct.mp3` (used), `BanKai.mp3`
 
 ## Testing

@@ -46,7 +46,7 @@ class _PassState extends State<RoundedPasswordField> {
           hintStyle: const TextStyle(color: kcTextMuted, fontFamily: 'Kanit'),
           icon: const Icon(
             Icons.lock_rounded,
-            color: kcAccentOrange,
+            color: kcTextMuted,
             size: 22,
           ),
           suffix: InkWell(
@@ -55,7 +55,7 @@ class _PassState extends State<RoundedPasswordField> {
               _isHidden
                   ? Icons.visibility_rounded
                   : Icons.visibility_off_rounded,
-              color: kcAccentOrange,
+              color: kcTextMuted,
               size: 22,
             ),
           ),

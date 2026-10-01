@@ -15,11 +15,12 @@ class MyApp extends StatelessWidget {
         fontFamily: 'Kanit',
         primaryColor: kcPrimaryColor,
         scaffoldBackgroundColor: kcInkColor,
-        colorScheme: const ColorScheme.dark(
+        colorScheme: const ColorScheme.light(
           primary: kcPrimaryColor,
-          secondary: kcAccentPink,
+          secondary: kcAccentOrange,
           surface: kcSurfaceColor,
           background: kcInkColor,
+          onSurface: kcTextPrimary,
         ),
       ),
       routes: routes,

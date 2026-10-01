@@ -5,12 +5,15 @@ class RoundedButton extends StatelessWidget {
   final String text;
   final Function press;
   final Color color, textColor;
+  // Defaults to 28% of the screen width (the old fixed size).
+  final double? width;
   const RoundedButton({
     Key? key,
     required this.text,
     required this.press,
     this.color = kcPrimaryColor,
     this.textColor = Colors.white,
+    this.width,
   }) : super(key: key);
 
   @override
@@ -18,17 +21,13 @@ class RoundedButton extends StatelessWidget {
     Size size = MediaQuery.of(context).size;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 8),
-      width: size.width * 0.28,
+      width: width ?? size.width * 0.28,
       height: 58,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(kcRadiusPill),
-        gradient: kcBrandGradient,
-        boxShadow: kcShadowGlow,
-      ),
       child: Material(
-        color: Colors.transparent,
+        color: color,
+        borderRadius: BorderRadius.circular(kcRadiusMd),
         child: InkWell(
-          borderRadius: BorderRadius.circular(kcRadiusPill),
+          borderRadius: BorderRadius.circular(kcRadiusMd),
           onTap: () => press(),
           splashColor: Colors.white24,
           highlightColor: Colors.white10,
@@ -40,7 +39,6 @@ class RoundedButton extends StatelessWidget {
                 fontSize: 18,
                 fontFamily: 'Kanit',
                 fontWeight: FontWeight.w500,
-                letterSpacing: 0.6,
               ),
             ),
           ),
