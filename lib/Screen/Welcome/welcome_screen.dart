@@ -8,7 +8,7 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      backgroundColor: kcBackgroundColor,
+      backgroundColor: kcInkColor,
       body: Body(),
     );
   }

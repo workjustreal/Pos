@@ -578,7 +578,7 @@ class _SecondState extends State<SecondScreen> {
                             height: 360,
                             padding: const EdgeInsets.only(top: 10, left: 30),
                             child: Scrollbar(
-                              isAlwaysShown: true,
+                              thumbVisibility: true,
                               controller: scollBarController,
                               child: ListView.builder(
                                 controller: scollBarController,
@@ -765,7 +765,7 @@ class _SecondState extends State<SecondScreen> {
                                       alignment: Alignment.topCenter,
                                       child: Column(
                                         children: [
-                                          QrImage(
+                                          QrImageView(
                                             backgroundColor: Colors.white,
                                             data: qr.toString(),
                                             version: QrVersions.auto,

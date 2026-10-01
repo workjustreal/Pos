@@ -11,27 +11,26 @@ class RoundedButtonHome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 70,
-      width: 80,
-      padding: const EdgeInsets.only(left:10),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(15),
-        child: newElevatedButton(),
+      width: 64,
+      height: 64,
+      margin: const EdgeInsets.only(left: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        gradient: kcBrandGradient,
+        boxShadow: kcShadowGlow,
       ),
-    );
-  }
-
-  Widget newElevatedButton() {
-    return  Material(
-      color: kcPrimaryColor,
-      child: Center(
-        child: Ink(
-          width: 70,
-          height: 70,
-          child: IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined,size: 35,),
-            color: Colors.white,
-            onPressed: () => press(),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: () => press(),
+          splashColor: Colors.white24,
+          child: const Center(
+            child: Icon(
+              Icons.shopping_bag_rounded,
+              size: 30,
+              color: Colors.white,
+            ),
           ),
         ),
       ),

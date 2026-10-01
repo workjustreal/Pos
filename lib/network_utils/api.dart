@@ -8,6 +8,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 class Network {
+  // Reuse a single HTTP client across requests so the underlying TCP socket
+  // stays warm (keep-alive). This dramatically reduces per-request latency
+  // for the once-per-second payment polling on slow networks.
+  static final http.Client _httpClient = http.Client();
+  static IOClient? _payClient;
+
+  static IOClient _getPayClient() {
+    if (_payClient != null) return _payClient!;
+    final ioc = HttpClient();
+    ioc.badCertificateCallback =
+        (X509Certificate cert, String host, int port) => true;
+    _payClient = IOClient(ioc);
+    return _payClient!;
+  }
+
   final String _url = 'http://192.168.2.12:1145/api/self-checkout/';
   final String _uri = 'http://192.168.2.12:1145/api/auth/login';
   final String _upay = 'https://api.krungsri.com/native/QRPayment/';
@@ -25,7 +40,7 @@ class Network {
 
   authData(data, apiUrl) async {
     fullUrl = _url + apiUrl;
-    return await http.post(fullUrl,
+    return await _httpClient.post(Uri.parse(fullUrl),
         body: jsonEncode(data), headers: _setHeaders());
   }
 
@@ -33,7 +48,7 @@ class Network {
     fullUrl = _url + apiUrl;
     urlAPI = Uri.parse(fullUrl);
     await _getToken();
-    return await http.post(urlAPI,
+    return await _httpClient.post(urlAPI,
         body: jsonEncode(data), headers: _setHeaders());
   }
 
@@ -41,32 +56,29 @@ class Network {
     fullUrl = _upay + apiUrl;
     urlAPI = Uri.parse(fullUrl);
     await _getUUID();
-    final ioc = HttpClient();
-    ioc.badCertificateCallback =
-        (X509Certificate cert, String host, int port) => true;
-    final http = IOClient(ioc);
-    return http.post(urlAPI, body: jsonEncode(data), headers: _setHead());
+    return _getPayClient()
+        .post(urlAPI, body: jsonEncode(data), headers: _setHead());
   }
 
   getSearchProduct(apiUrl) async {
     fullUrl = _url + apiUrl;
     urlAPI = Uri.parse(fullUrl);
     await _getToken();
-    return await http.get(urlAPI, headers: _setHeaders());
+    return await _httpClient.get(urlAPI, headers: _setHeaders());
   }
 
   getCancelOrder(apiUrl, oid) async {
     fullUrl = _url + apiUrl;
     urlAPI = Uri.parse(fullUrl);
     await _getToken();
-    return await http.post(urlAPI,
+    return await _httpClient.post(urlAPI,
         body: jsonEncode(oid), headers: _setHeaders());
   }
 
   getLogin(user) async {
     data = user;
     urlAPI = Uri.parse(_uri);
-    return await http.post(urlAPI, body: data);
+    return await _httpClient.post(urlAPI, body: data);
   }
 
   _setHeaders() => {

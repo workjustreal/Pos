@@ -3,14 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:kacee_pos/components/textpass_field_container.dart';
 import 'package:kacee_pos/constants.dart';
 
-class RoundedPasswordField extends StatefulWidget  {
+class RoundedPasswordField extends StatefulWidget {
   final int maxLength;
   final ValueChanged<String> onChanged;
   const RoundedPasswordField({
     Key? key,
     required this.maxLength,
     required this.onChanged,
-    }) : super(key: key);
+  }) : super(key: key);
   @override
   State<RoundedPasswordField> createState() => _PassState();
 }
@@ -36,20 +36,27 @@ class _PassState extends State<RoundedPasswordField> {
         obscureText: _isHidden,
         enableSuggestions: false,
         autocorrect: false,
-        cursorColor: kcPrimaryColor,
+        cursorColor: kcAccentOrange,
         maxLength: widget.maxLength,
+        style: const TextStyle(
+            color: kcTextPrimary, fontFamily: 'Kanit', fontSize: 16),
         decoration: InputDecoration(
           counterText: "",
           hintText: "Password",
+          hintStyle: const TextStyle(color: kcTextMuted, fontFamily: 'Kanit'),
           icon: const Icon(
-            Icons.lock,
-            color: kcPrimaryColor,
+            Icons.lock_rounded,
+            color: kcAccentOrange,
+            size: 22,
           ),
           suffix: InkWell(
             onTap: _togglePassword,
             child: Icon(
-              _isHidden ? Icons.visibility : Icons.visibility_off,
-              color: kcPrimaryColor,
+              _isHidden
+                  ? Icons.visibility_rounded
+                  : Icons.visibility_off_rounded,
+              color: kcAccentOrange,
+              size: 22,
             ),
           ),
           border: InputBorder.none,

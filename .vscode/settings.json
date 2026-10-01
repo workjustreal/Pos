@@ -1,3 +1,25 @@
 {
-    "nuxt.isNuxtApp": false
+  "nuxt.isNuxtApp": false,
+
+  // ── Stop Code Runner from running .dart files with the standalone `dart`
+  // ── command. That ignores Flutter and triggers the cupertino/colors.dart
+  // ── exhaustive-switch errors. The Flutter extension runs them properly
+  // ── via `flutter run` instead, which understands the framework.
+  "code-runner.executorMapByGlob": {
+    "*.dart": ""
+  },
+  "code-runner.respectShebang": false,
+
+  // Sensible Dart/Flutter defaults — format on save and pin the SDK
+  "[dart]": {
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.rulers": [80],
+    "editor.selectionHighlight": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
+  },
+  "dart.openDevTools": "flutter",
+  "dart.previewFlutterUiGuides": true
 }

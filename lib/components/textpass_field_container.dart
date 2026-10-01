@@ -12,13 +12,19 @@ class TextFieldContainer extends StatelessWidget {
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-      width: size.width * 0.25,
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
+      width: size.width * 0.28,
       decoration: BoxDecoration(
-        color: kcPrimaryLightColor,
-        borderRadius: BorderRadius.circular(29),
+        color: kcSurfaceColorHi.withOpacity(0.85),
+        borderRadius: BorderRadius.circular(kcRadiusPill),
+        border: Border.all(color: kcStrokeColor, width: 1),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x33000000), blurRadius: 16, offset: Offset(0, 6)),
+        ],
       ),
-      child: child
+      child: child,
     );
   }
 }
