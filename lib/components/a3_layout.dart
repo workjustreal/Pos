@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:kacee_pos/constants.dart';
 
@@ -10,11 +11,14 @@ class KcTopBar extends StatelessWidget {
   final String? section;
   final String? info;
   final List<Widget> actions;
+  // Hidden staff action: fires after holding the logo for 2 seconds.
+  final VoidCallback? onLogoLongPress;
   const KcTopBar({
     Key? key,
     this.section,
     this.info,
     this.actions = const [],
+    this.onLogoLongPress,
   }) : super(key: key);
 
   @override
@@ -27,18 +31,7 @@ class KcTopBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const KcDot(size: 10),
-          const SizedBox(width: 10),
-          const Text(
-            'KACEEPOS',
-            style: TextStyle(
-              fontFamily: 'Kanit',
-              fontSize: 20,
-              fontWeight: FontWeight.w500,
-              letterSpacing: 1.5,
-              color: kcTextPrimary,
-            ),
-          ),
+          _logo(),
           if (section != null) ...[
             const SizedBox(width: 10),
             Text(
@@ -60,6 +53,39 @@ class KcTopBar extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _logo() {
+    const logo = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        KcDot(size: 10),
+        SizedBox(width: 10),
+        Text(
+          'KACEEPOS',
+          style: TextStyle(
+            fontFamily: 'Kanit',
+            fontSize: 20,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 1.5,
+            color: kcTextPrimary,
+          ),
+        ),
+      ],
+    );
+    if (onLogoLongPress == null) return logo;
+    return RawGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      gestures: {
+        LongPressGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+          () => LongPressGestureRecognizer(
+              duration: const Duration(seconds: 2)),
+          (r) => r.onLongPress = onLogoLongPress,
+        ),
+      },
+      child: logo,
     );
   }
 }

@@ -122,7 +122,7 @@ Krungsri requests are built in `KrungsriPaymentService`. They're signed with SHA
 5. **EndScreen**: shows the paid summary and the live print status (from `printJob`, with `PrinterService().lastConnectError` on failure), TTS "ขอบคุณที่ใช้บริการ", 10s countdown → `pushAndRemoveUntil` MainScreen.
 
 **Back button / navigation:** After the first sale, every screen is the only route on the stack (all navigation uses `pushAndRemoveUntil`), so letting a back-press pop through closes the app. Each `onWillPop` therefore navigates explicitly and returns `false`:
-- MainScreen: confirm logout → LoginScreen
+- MainScreen: confirm logout → LoginScreen. Staff can also log out by holding the KACEEPOS logo in the top bar for 2s (`KcTopBar.onLogoLongPress`), since the kiosk usually hides the nav bar.
 - SecondScreen: confirm → stop timers → MainScreen (the order is **not** cancelled)
 - EndScreen: → MainScreen
 

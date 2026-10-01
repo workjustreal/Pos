@@ -476,6 +476,9 @@ class _MainState extends State<MainScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 KcTopBar(
+                  // Staff logout: hold the logo for 2s. The kiosk usually
+                  // hides the Android nav bar, so Back isn't reachable.
+                  onLogoLongPress: _onBackPressed,
                   info: '${shop_name ?? "—"} · เครื่อง ${machine_code ?? "—"}'
                       ' · $formattedDate',
                   actions: [
