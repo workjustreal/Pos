@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "KACEEPOS 2.0 (Sunmi T2 — debug)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "DD01211N41132",
+      "flutterMode": "debug"
+    },
+    {
+      "name": "KACEEPOS 2.0 (Sunmi T2 — profile)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "DD01211N41132",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "KACEEPOS 2.0 (Sunmi T2 — release)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "DD01211N41132",
+      "flutterMode": "release"
+    }
+  ]
+}

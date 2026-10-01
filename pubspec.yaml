@@ -1,9 +1,9 @@
 name: kacee_pos
-description: kacee pos project
+description: KACEEPOS 2.0 - self checkout
 
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+publish_to: "none" # Remove this line if you wish to publish to pub.dev
 
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
@@ -17,10 +17,10 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
-  sdk: '>=2.18.2 <3.0.0'
+  sdk: ">=3.0.0 <4.0.0"
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -32,6 +32,8 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # connectivity: ^3.0.6
+  connectivity_plus: ^6.1.1
   flutter_svg: ^1.1.0
   page_transition: "^2.0.5"
   http: ^0.13.4
@@ -48,16 +50,21 @@ dependencies:
   flutter_launcher_icons: ^0.10.0
   uuid: ^3.0.6
   crypton: ^2.0.5
+  crypto: ^3.0.6
   qr_flutter: ^4.0.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   image: ^3.3.0
-  image_downloader: ^0.31.0
+  # image_downloader: ^0.31.0
+  flutter_downloader: ^1.11.7
   scroll_to_index: ^3.0.1
   scrollable_positioned_list: ^0.3.5
   audioplayers: ^4.1.0
   fdottedline_nullsafety: ^2.0.1
+  # modal_progress_hud: ^0.1.3
+  modal_progress_hud_nsn: ^0.5.0
+  flutter_tts: ^3.8.5
 
 dev_dependencies:
   flutter_test:
@@ -73,7 +80,6 @@ flutter_icons:
   min_sdk_android: 21 # android min sdk min:16, default 21
 # The following section is specific to Flutter packages.
 flutter:
-
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
@@ -100,9 +106,13 @@ flutter:
   fonts:
     - family: Kanit
       fonts:
+        - asset: assets/google_fonts/Kanit-Light.ttf
+          weight: 300
         - asset: assets/google_fonts/Kanit-Regular.ttf
         - asset: assets/google_fonts/Kanit-Italic.ttf
           style: italic
+        - asset: assets/google_fonts/Kanit-Medium.ttf
+          weight: 500
   # fonts:
   #   - family: Schyler
   #     fonts:

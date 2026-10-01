@@ -5,38 +5,44 @@ class RoundedButton extends StatelessWidget {
   final String text;
   final Function press;
   final Color color, textColor;
+  // Defaults to 28% of the screen width (the old fixed size).
+  final double? width;
   const RoundedButton({
     Key? key,
     required this.text,
     required this.press,
     this.color = kcPrimaryColor,
     this.textColor = Colors.white,
+    this.width,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     Size size = MediaQuery.of(context).size;
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5),
-      width: size.width * 0.25,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(30),
-        child: newElevatedButton(),
-      ),
-    );
-  }
-
-  Widget newElevatedButton() {
-    return ElevatedButton(
-      onPressed: () => press(),
-      style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          textStyle: TextStyle(
-              color: textColor, fontSize: 14, fontWeight: FontWeight.w500)),
-      child: Text(
-        text,
-        style: TextStyle(color: textColor, fontSize: 20, fontFamily: 'Kanit'),
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      width: width ?? size.width * 0.28,
+      height: 58,
+      child: Material(
+        color: color,
+        borderRadius: BorderRadius.circular(kcRadiusMd),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(kcRadiusMd),
+          onTap: () => press(),
+          splashColor: Colors.white24,
+          highlightColor: Colors.white10,
+          child: Center(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: textColor,
+                fontSize: 18,
+                fontFamily: 'Kanit',
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

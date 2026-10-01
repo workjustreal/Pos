@@ -1,3 +1,8 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
 def localProperties = new Properties()
 def localPropertiesFile = rootProject.file('local.properties')
 if (localPropertiesFile.exists()) {
@@ -27,24 +32,32 @@ if (flutterVersionName == null) {
     flutterVersionName = '1.0'
 }
 
-apply plugin: 'com.android.application'
-apply plugin: 'kotlin-android'
-apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+// apply plugin: 'com.android.application'
+// apply plugin: 'kotlin-android'
+// apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
+
 
 android {
+    buildDir = "$rootProject.buildDir/app"
+    namespace "com.kacee.pos.kacee_pos"
     compileSdkVersion flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId "com.kacee.pos.kacee_pos"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://docs.flutter.dev/deployment/android#reviewing-the-build-configuration.
+        // Application ID — unique identifier Android uses to distinguish apps.
+        // Suffixed with ".v2" so KACEEPOS 2.0 installs as a SEPARATE app
+        // alongside the original "com.kacee.pos.kacee_pos" already on Sunmi T2.
+        // Both apps will have their own icon, data, and SharedPreferences.
+        applicationId "com.kacee.pos.kacee_pos.v2"
         minSdkVersion flutter.minSdkVersion
         targetSdkVersion flutter.targetSdkVersion
         versionCode flutterVersionCode.toInteger()
@@ -67,6 +80,18 @@ android {
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig signingConfigs.debug
             // signingConfig signingConfigs.release
+
+            // Disable R8 code shrinking. The default R8 pass fails because it
+            // sees references to androidx.window.extensions.* / sidecar.* —
+            // those interfaces are provided by newer Android versions at
+            // runtime but aren't on the compile classpath. Sunmi T2 runs
+            // Android 7.1 so those code paths never execute anyway.
+            // Keeping shrinking off also avoids R8 stripping reflection-used
+            // code in plugins like print_bluetooth_thermal, qr_flutter,
+            // crypton, etc. Small APK size trade-off for reliability.
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }
@@ -76,5 +101,5 @@ flutter {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22"
 }

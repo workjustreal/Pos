@@ -42,3 +42,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Signing keys and credentials - never commit (repo is public)
+*.jks
+*.keystore
+key.properties

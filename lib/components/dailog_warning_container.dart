@@ -1,7 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:kacee_pos/constants.dart';
-import 'package:kacee_pos/Screen/Pos/main_screen.dart';
 
 class AlertDailogBoxWarning extends StatelessWidget {
   final String title;

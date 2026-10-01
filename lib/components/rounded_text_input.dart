@@ -19,15 +19,19 @@ class RoundedInputField extends StatelessWidget {
     return TextFieldContainer(
       child: TextField(
         controller: TextEditingController(text: "pos01"),
-        readOnly :true,
+        readOnly: true,
         onChanged: onChanged,
-        cursorColor: kcPrimaryColor,
+        cursorColor: kcAccentOrange,
+        style: const TextStyle(
+            color: kcTextPrimary, fontFamily: 'Kanit', fontSize: 16),
         decoration: InputDecoration(
           icon: const Icon(
-            Icons.account_circle,
-            color: kcPrimaryColor,
+            Icons.account_circle_rounded,
+            color: kcTextMuted,
+            size: 22,
           ),
           hintText: hintText,
+          hintStyle: const TextStyle(color: kcTextMuted, fontFamily: 'Kanit'),
           border: InputBorder.none,
         ),
         inputFormatters: [

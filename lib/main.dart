@@ -10,11 +10,18 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'KACEE STOCK',
+      title: 'KACEEPOS 2.0',
       theme: ThemeData(
         fontFamily: 'Kanit',
         primaryColor: kcPrimaryColor,
-        scaffoldBackgroundColor: Colors.white,
+        scaffoldBackgroundColor: kcInkColor,
+        colorScheme: const ColorScheme.light(
+          primary: kcPrimaryColor,
+          secondary: kcAccentOrange,
+          surface: kcSurfaceColor,
+          background: kcInkColor,
+          onSurface: kcTextPrimary,
+        ),
       ),
       routes: routes,
     );
