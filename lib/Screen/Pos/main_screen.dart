@@ -3,6 +3,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:kacee_pos/Screen/Login/login_screen.dart';
 import 'package:kacee_pos/Screen/Pos/components/background.dart';
 import 'package:kacee_pos/Screen/Pos/second_screen.dart';
 import 'package:kacee_pos/components/aurora_background.dart';
@@ -11,12 +12,11 @@ import 'package:flutter_barcode_listener/flutter_barcode_listener.dart';
 import 'package:kacee_pos/constants.dart';
 import 'package:kacee_pos/model/product.dart';
 import 'package:kacee_pos/network_utils/api.dart';
+import 'package:kacee_pos/services/krungsri_payment_service.dart';
 import 'package:kacee_pos/services/printer_service.dart';
 import 'package:kacee_pos/services/tts_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:visibility_detector/visibility_detector.dart';
-import 'package:crypto/crypto.dart';
-import 'package:crypton/crypton.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -28,12 +28,12 @@ class MainScreen extends StatefulWidget {
 
 class _MainState extends State<MainScreen> {
   final ScrollController scollBarController = ScrollController();
-  final List<int> _list = List.generate(20, (i) => i);
-  final List<bool> _selected = List.generate(20, (i) => false);
   final player = AudioPlayer();
 
   String? _barcode;
-  late bool visible;
+  // Starts false so a scan that lands before VisibilityDetector's first
+  // report is ignored instead of throwing LateInitializationError.
+  bool visible = false;
   late List<Product>? productList;
   // late final id;
   String? order_id,
@@ -44,13 +44,6 @@ class _MainState extends State<MainScreen> {
       shop_name,
       self_name,
       machine_code;
-
-  bool printBinded = false;
-  int paperSize = 0;
-  String serialNumber = "";
-  String printerVersion = "";
-  var coreItem = StringBuffer();
-  var coreTotal = StringBuffer();
 
   final double _height = 80;
   void _scrollToIndex(index) {
@@ -67,8 +60,10 @@ class _MainState extends State<MainScreen> {
 
   int? _selectItem;
   int? _destinationIndex;
-  bool _isButtonDisabled = false;
+  bool _canPay = false;
   bool _isScanning = false;
+  // Blocks a double-tap on "ชำระเงิน" from creating two QR transactions.
+  bool _isPaying = false;
 
   @override
   void initState() {
@@ -81,6 +76,13 @@ class _MainState extends State<MainScreen> {
     _loadSaleOrder();
     PrinterService().ensureConnected();
     _userDetail();
+  }
+
+  @override
+  void dispose() {
+    scollBarController.dispose();
+    player.dispose();
+    super.dispose();
   }
 
   Future<void> _loadLocalIdentifiers() async {
@@ -96,15 +98,10 @@ class _MainState extends State<MainScreen> {
     });
   }
 
-  void _paymentButtonEnabled() {
+  void _setPayEnabled(bool enabled) {
+    if (!mounted) return;
     setState(() {
-      _isButtonDisabled = true;
-    });
-  }
-
-  void _paymentButtonDisabled() {
-    setState(() {
-      _isButtonDisabled = false;
+      _canPay = enabled;
     });
   }
 
@@ -168,54 +165,41 @@ class _MainState extends State<MainScreen> {
   }
 
   Future<void> _loadSaleOrder() async {
-    SharedPreferences localStorage = await SharedPreferences.getInstance();
-    var id = localStorage.getString("id");
-    var path = 'order/get/';
-    var urlapi = Network().getSearchProduct(path);
-    var response = await urlapi;
-    if (response.statusCode == 200) {
-      var jsonResponse = json.decode(response.body);
+    try {
+      final localStorage = await SharedPreferences.getInstance();
+      final response = await Network().getSearchProduct('order/get/');
+      if (response.statusCode != 200) return;
+      final jsonResponse = json.decode(response.body);
       // Guard: server can return 200 with empty/missing data on edge cases
       // (no active order, auth refresh window, etc.). Bail out cleanly
       // instead of crashing on null['items'].
       final data = jsonResponse is Map ? jsonResponse['data'] : null;
       if (data == null || data is! Map) return;
       final List item = (data['items'] as List?) ?? const [];
-      coreItem.clear();
-      var cart;
-      for (var i in item) {
-        cart = i['sku'];
-        cart += "(";
-        cart += i['qty'].toString();
-        cart += ")";
-        cart += "          ";
-        cart += double.parse((i['total_price'].toString())).toStringAsFixed(3);
-        cart += "\n\n";
-        coreItem.write(cart);
-      }
+      final products = item
+          .map<Product>((m) => Product.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+      final oid = data['order_id'].toString();
+      await localStorage.setString("order_id", oid);
+      if (!mounted) return;
       setState(() {
-        coreTotal.clear();
-        localStorage.setString(
-            "order_id", jsonResponse['data']['order_id'].toString());
-        order_id = jsonResponse['data']['order_id'].toString();
-        order_number = jsonResponse['data']['order_number'];
-        total_qty = jsonResponse['data']['total_qty'].toString();
-        total_price = jsonResponse['data']['total_price'].toString();
+        order_id = oid;
+        order_number = data['order_number']?.toString();
+        total_qty = data['total_qty'].toString();
+        total_price = data['total_price'].toString();
         shop_code = localStorage.getString("shop_code");
         machine_code = localStorage.getString("machine_code");
-        coreTotal.write(total_price);
-        productList = item
-            .map<Product>((m) => Product.fromJson(Map<String, dynamic>.from(m)))
-            .toList();
-
-        final index =
-            productList!.indexWhere((element) => element.barcode == _barcode);
-        _destinationIndex = index;
+        productList = products;
+        _destinationIndex =
+            products.indexWhere((element) => element.barcode == _barcode);
       });
       if (_selectItem != -1) {
         _scrollToIndex(_destinationIndex);
       }
-      _paymentButtonEnabled();
+      _setPayEnabled(true);
+    } catch (e) {
+      // ignore: avoid_print
+      print('_loadSaleOrder error: $e');
     }
   }
 
@@ -234,18 +218,33 @@ class _MainState extends State<MainScreen> {
   }
 
   void paymentProcess() async {
-    bool isConnected = await checkInternetConnectivity();
-    if (isConnected) {
-      // Speak the total aloud (Thai TTS) — so the customer can verify the
-      // amount before scanning the QR.
-      final amount =
-          double.tryParse((total_price ?? '0').replaceAll(',', '')) ?? 0;
-      TtsService().speakAmount(amount); // fire-and-forget
-      QRPayment();
-    } else {
-      var message = "กรุณาตรวจสอบการเชื่อมต่ออินเตอร์เน็ต!";
-      _showAlertDialog(context, message);
+    if (_isPaying) return;
+    _isPaying = true;
+    try {
+      bool isConnected = await checkInternetConnectivity();
+      if (!mounted) return;
+      if (isConnected) {
+        await QRPayment();
+      } else {
+        var message = "กรุณาตรวจสอบการเชื่อมต่ออินเตอร์เน็ต!";
+        _showAlertDialog(context, message);
+      }
+    } finally {
+      _isPaying = false;
     }
+  }
+
+  /// Back button = logout. After a sale MainScreen is the only route on
+  /// the stack, so letting the pop through closed the app instead of
+  /// returning to login. Always replace the stack with LoginScreen.
+  Future<bool> _onBackPressed() async {
+    final logout = await showExitPopup();
+    if (!logout || !mounted) return false;
+    Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        (_) => false);
+    return false;
   }
 
   Future<bool> showExitPopup() async {
@@ -301,7 +300,7 @@ class _MainState extends State<MainScreen> {
     // scan lock prevents a fast double-scan from firing duplicate
     // add-item requests while the previous round-trip is still pending.
     if (_isScanning) return;
-    _paymentButtonDisabled();
+    _setPayEnabled(false);
     _isScanning = true;
     try {
       // If we don't have an active order yet, try one refresh first. This
@@ -333,12 +332,16 @@ class _MainState extends State<MainScreen> {
         final msg = isLikelyProductIssue
             ? "ไม่พบสินค้านี้ในระบบ — กรุณาแจ้งแคชเชียร์"
             : "บันทึกไม่สำเร็จ (HTTP ${response.statusCode})\nกรุณาแจ้งแคชเชียร์";
+        // The cart didn't change — re-enable pay for the items already in it.
+        _setPayEnabled(true);
+        if (!mounted) return;
         _showAlertDialog(context, msg);
         await player.play(AssetSource('sound/noproduct.mp3'));
       }
     } catch (e) {
       // ignore: avoid_print
       print('searchProduct error: $e');
+      _setPayEnabled(true);
       if (mounted) {
         _showAlertDialog(context,
             "เกิดข้อผิดพลาดในการเชื่อมต่อ\nกรุณาลองสแกนใหม่อีกครั้ง");
@@ -349,111 +352,91 @@ class _MainState extends State<MainScreen> {
   }
 
   Future delItem(id, sku) async {
-    final localStorage = await SharedPreferences.getInstance();
-    final uid = localStorage.getString("id");
-    final response = await Network().pushTransfer('order/item/del', {
-      'uid': uid,
-      'oid': id,
-      'sku': sku,
-    });
-    if (response.statusCode == 200) {
-      _selectItem = -1;
-      _loadSaleOrder();
-    } else {
+    try {
+      final localStorage = await SharedPreferences.getInstance();
+      final uid = localStorage.getString("id");
+      final response = await Network().pushTransfer('order/item/del', {
+        'uid': uid,
+        'oid': id,
+        'sku': sku,
+      });
+      if (response.statusCode == 200) {
+        _selectItem = -1;
+        _loadSaleOrder();
+        return;
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('delItem error: $e');
+    }
+    if (mounted) {
       _showAlertDialog(context, "ไม่สามารถบันทึกได้ กรุณาติดต่อ ADMIN");
     }
   }
 
   Future<void> clearItem() async {
-    final response =
-        await Network().pushTransfer('order/clear', {'oid': order_id});
-    if (response.statusCode == 200) {
-      _selectItem = -1;
-      _loadSaleOrder();
-    } else {
+    try {
+      final response =
+          await Network().pushTransfer('order/clear', {'oid': order_id});
+      if (response.statusCode == 200) {
+        _selectItem = -1;
+        _loadSaleOrder();
+        return;
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('clearItem error: $e');
+    }
+    if (mounted) {
       _showAlertDialog(context, "ไม่สามารถบันทึกได้ กรุณาติดต่อ ADMIN");
     }
   }
 
   Future QRPayment() async {
-    Future.delayed(const Duration(seconds: 1));
-    var now = DateTime.now();
-    var formatter = DateFormat('yyyy-MM-dd|HH:mm:ss');
-    var timestamp = formatter.format(now);
-    SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
-    var sum = total_price.toString().replaceAll(',', '');
-
-    if (double.parse(sum) <= 0.00) {
-      var message = "กรุณาเพิ่มสินค้าในตะกร้าก่อน";
-      _showAlertDialog(context, message);
-    } else {
-      String bizMchId = '1088156637107024';
-      String pubKey =
-          'MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQC0LhvtMyXZFBEw2ePMYrZfDQhGdgLjx2Ls8JCovMk48zcMlWk/yuImicxl7bKW6syXGQScByRaFjcQrPMk6RLDcFtpsTo+vkbCY/0A6STTBepsS4lWtB2bAOgWPuHI+hblccWiRUGHKf2P9bWSq6Yb5xJe0EuLfVtm42xNtdTpAQIDAQAB';
-      String billerId = '010554709331800';
-      String ch = '2';
-      String ref1 = '$order_number';
-      String ref2 = '024293333';
-      String terminalId = '0001';
-      String amount = sum;
-      String remark = timestamp;
-
-      String strA =
-          "amount=$amount&billerId=$billerId&bizMchId=$bizMchId&channel=$ch&reference1=$ref1&reference2=$ref2&remark=$remark&terminalId=$terminalId";
-      var key = utf8.encode(strA);
-      var strB = sha256.convert(key);
-
-      RSAPublicKey rsa = RSAPublicKey.fromString(pubKey);
-      String sign = rsa.encrypt(strB.toString());
-
-      Map<String, dynamic> requests = {
-        'bizMchId': bizMchId,
-        'billerId': billerId,
-        'channel': ch,
-        'reference1': ref1,
-        'reference2': ref2,
-        'terminalId': terminalId,
-        'amount': amount,
-        'remark': remark,
-        'sign': sign
-      };
-      var path = 'trans/precreate';
-      var uriapi = Network().paymentTransfer(path, requests);
-      var response = await uriapi;
-      if (response.statusCode == 200) {
-        var jsonResponse = json.decode(response.body);
-        sharedPreferences.setString(
-            "qrcodeContent", jsonResponse['qrcodeContent']);
-        sharedPreferences.setString("trxId", jsonResponse['trxId']);
-        // Snapshot current cart state and hand it to SecondScreen so the
-        // QR review screen can render the list, totals, and order number
-        // immediately — independent of whatever order/get/ returns once
-        // the backend has moved the order into a pending-payment state.
-        final productsSnapshot =
-            productList == null ? null : List<Product>.from(productList!);
-        final totalPriceSnapshot = total_price;
-        final totalQtySnapshot = total_qty;
-        final orderNumberSnapshot = order_number;
-        final orderIdSnapshot = order_id;
-        setState(() {
-          Navigator.pushAndRemoveUntil(context,
-              MaterialPageRoute(builder: (BuildContext context) {
-            return SecondScreen(
-              initialProducts: productsSnapshot,
-              initialTotalPrice: totalPriceSnapshot,
-              initialTotalQty: totalQtySnapshot,
-              initialOrderNumber: orderNumberSnapshot,
-              initialOrderId: orderIdSnapshot,
-            );
-          }), (r) {
-            return false;
-          });
-        });
-      } else {
-        var message = 'ไม่สามรถเชื่อมต่อธนาคารได้! กรุณาติดต่อแอดมิน';
-        _showAlertDialog(context, message);
-      }
+    final sum = (total_price ?? '0').replaceAll(',', '');
+    final amount = double.tryParse(sum) ?? 0;
+    if (amount <= 0) {
+      _showAlertDialog(context, "กรุณาเพิ่มสินค้าในตะกร้าก่อน");
+      return;
     }
+
+    // Speak the total aloud (Thai TTS) — so the customer can verify the
+    // amount before scanning the QR.
+    TtsService().speakAmount(amount); // fire-and-forget
+
+    bool ok;
+    try {
+      ok = await KrungsriPaymentService.precreate(
+          amount: sum, reference1: '$order_number');
+    } catch (e) {
+      // ignore: avoid_print
+      print('QRPayment error: $e');
+      ok = false;
+    }
+    if (!mounted) return;
+    if (!ok) {
+      _showAlertDialog(context, 'ไม่สามรถเชื่อมต่อธนาคารได้! กรุณาติดต่อแอดมิน');
+      return;
+    }
+
+    // Snapshot current cart state and hand it to SecondScreen so the
+    // QR review screen can render the list, totals, and order number
+    // immediately — independent of whatever order/get/ returns once
+    // the backend has moved the order into a pending-payment state.
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SecondScreen(
+          initialProducts:
+              productList == null ? null : List<Product>.from(productList!),
+          initialTotalPrice: total_price,
+          initialTotalQty: total_qty,
+          initialOrderNumber: order_number,
+          initialOrderId: order_id,
+        ),
+      ),
+      (_) => false,
+    );
   }
 
   // ------------------------------------------------------------------------
@@ -464,7 +447,7 @@ class _MainState extends State<MainScreen> {
   Widget build(BuildContext context) {
     final formattedDate = DateFormat('EEEEE d MMM yyyy').format(DateTime.now());
     return WillPopScope(
-      onWillPop: showExitPopup,
+      onWillPop: _onBackPressed,
       child: Scaffold(
         backgroundColor: kcInkColor,
         body: Background(
@@ -1265,7 +1248,7 @@ class _MainState extends State<MainScreen> {
   }
 
   Widget _payButton() {
-    final enabled = _isButtonDisabled; // legacy naming: true == enabled
+    final enabled = _canPay;
     return Opacity(
       opacity: enabled ? 1.0 : 0.45,
       child: Container(

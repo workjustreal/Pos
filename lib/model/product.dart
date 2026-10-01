@@ -12,10 +12,12 @@ class Product {
     required this.totalprice,
   });
 
+  // Tolerant of null / numeric-as-string fields so one malformed item
+  // can't throw a TypeError and blank the whole cart.
   factory Product.fromJson(Map<String, dynamic> json) => Product(
-        id: json['id'],
-        sku: json['sku'],
-        barcode: json['barcode'],
+        id: int.tryParse(json['id'].toString()) ?? 0,
+        sku: (json['sku'] ?? '').toString(),
+        barcode: (json['barcode'] ?? '').toString(),
         name: json['name'].toString(),
         qty: json['qty'].toString(),
         price: json['price'].toString(),

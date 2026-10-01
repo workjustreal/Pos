@@ -26,46 +26,20 @@ class _EndState extends State<EndScreen> {
     _startTimer();
   }
 
-  Future<bool> showExitPopup() async {
-    return await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            backgroundColor: kcSurfaceColor,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(kcRadiusLg)),
-            title: const Text('แจ้งเตือน',
-                style: TextStyle(color: kcTextPrimary, fontFamily: 'Kanit')),
-            content: const Text(
-                'คุณต้องการกลับไปแก้ไขรายการสินค้าใช่หรือไม่?',
-                style: TextStyle(
-                    color: kcTextSecondary, fontFamily: 'Kanit')),
-            actions: [
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: kcSuccessColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.0),
-                  ),
-                ),
-                child: const Text('ไม่'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: ElevatedButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  backgroundColor: kcDangerColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20.0),
-                  ),
-                ),
-                child: const Text('ใช่'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
+  void _goHome() {
+    _timer.cancel();
+    Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (_) => false);
+  }
+
+  /// Back button: the sale is complete, so go straight to the cart screen.
+  /// This screen is the only route on the stack — letting the pop through
+  /// used to close the app.
+  Future<bool> _onBackPressed() async {
+    _goHome();
+    return false;
   }
 
   String get _timerText {
@@ -83,20 +57,13 @@ class _EndState extends State<EndScreen> {
   void _startTimer() {
     const duration = Duration(seconds: 1);
     _timer = Timer.periodic(duration, (Timer timer) {
+      if (!mounted) return;
       setState(() {
         _currentSecond = timer.tick;
-        if (timer.tick >= _maxSeconds) {
-          timer.cancel();
-          setState(() {
-            Navigator.pushAndRemoveUntil(context,
-                MaterialPageRoute(builder: (BuildContext context) {
-              return const MainScreen();
-            }), (r) {
-              return false;
-            });
-          });
-        }
       });
+      if (timer.tick >= _maxSeconds) {
+        _goHome();
+      }
     });
   }
 
@@ -109,7 +76,7 @@ class _EndState extends State<EndScreen> {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: showExitPopup,
+      onWillPop: _onBackPressed,
       child: Scaffold(
         backgroundColor: kcInkColor,
         body: Background(
@@ -200,15 +167,7 @@ class _EndState extends State<EndScreen> {
                     const SizedBox(height: 36),
                     RoundedButton(
                       text: "กลับสู่หน้าหลัก  $_timerText",
-                      press: () {
-                        Navigator.pushAndRemoveUntil(
-                          context,
-                          MaterialPageRoute(builder: (BuildContext context) {
-                            return const MainScreen();
-                          }),
-                          (r) => false,
-                        );
-                      },
+                      press: _goHome,
                     ),
                     const SizedBox(height: 8),
                     Text(

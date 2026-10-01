@@ -8,7 +8,7 @@ import 'package:kacee_pos/constants.dart';
 import 'package:page_transition/page_transition.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kacee_pos/network_utils/api.dart';
-import 'package:kacee_pos/Screen/login/components/background.dart';
+import 'package:kacee_pos/Screen/Login/components/background.dart';
 import 'package:kacee_pos/components/rounded_password_input.dart';
 import 'package:kacee_pos/components/rounded_button.dart';
 import 'package:kacee_pos/components/dailog_container.dart';
@@ -22,7 +22,6 @@ class Body extends StatefulWidget {
 }
 
 class _LoginState extends State<Body> {
-  // ignore: unused_field
   bool _isLoading = false;
   final now = DateTime.now();
   Userlogin userlogin = Userlogin(
@@ -50,7 +49,14 @@ class _LoginState extends State<Body> {
     if (password.isEmpty || email.isEmpty) {
       var message = "กรุณาใส่ข้อมูลให้ครบถ้วน";
       return _showAlertDialog(context, message);
-    } else {
+    }
+    // Ignore taps while a login is in flight — a double-tap used to push
+    // two MainScreens.
+    if (_isLoading) return;
+    setState(() {
+      _isLoading = true;
+    });
+    try {
       SharedPreferences sharedPreferences =
           await SharedPreferences.getInstance();
       Map data = {
@@ -61,22 +67,22 @@ class _LoginState extends State<Body> {
         'status_date': '1'
       };
       var response = await Network().getLogin(data);
+      if (!mounted) return;
 
       if (response.statusCode == 200) {
         var jsonResponse = json.decode(response.body);
         if (jsonResponse != null) {
-          setState(() {
-            _isLoading = false;
-          });
-          sharedPreferences.setString("token", jsonResponse['data']['token']);
-          sharedPreferences.setString(
-              "id", jsonResponse['data']['user']['id'].toString());
-          sharedPreferences.setString(
-              "shop_code", jsonResponse['data']['user']['shop_code']);
-          sharedPreferences.setString(
-              "machine_code", jsonResponse['data']['user']['machine_code']);
-          sharedPreferences.setString(
-              "mac_printer", jsonResponse['data']['user']['mac_printer']);
+          final user = jsonResponse['data']['user'];
+          await sharedPreferences.setString(
+              "token", jsonResponse['data']['token']);
+          await sharedPreferences.setString("id", user['id'].toString());
+          await sharedPreferences.setString(
+              "shop_code", user['shop_code'].toString());
+          await sharedPreferences.setString(
+              "machine_code", user['machine_code'].toString());
+          await sharedPreferences.setString(
+              "mac_printer", (user['mac_printer'] ?? '').toString());
+          if (!mounted) return;
           Navigator.push(
             context,
             PageTransition(
@@ -87,11 +93,21 @@ class _LoginState extends State<Body> {
           );
         }
       } else {
+        var message = "ไม่พบข้อมูลสิทธิผู้ใช้งาน";
+        _showAlertDialog(context, message);
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('_signIn error: $e');
+      if (mounted) {
+        _showAlertDialog(
+            context, "ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้ กรุณาลองอีกครั้ง");
+      }
+    } finally {
+      if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        var message = "ไม่พบข้อมูลสิทธิผู้ใช้งาน";
-        _showAlertDialog(context, message);
       }
     }
   }
