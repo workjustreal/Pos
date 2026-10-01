@@ -1,251 +1,174 @@
-﻿# CLAUDE.md
+# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-**KaceePOS** is a Flutter-based point-of-sale (POS) and self-checkout application for Android. The app integrates with a backend API for product management, order processing, and payment processing (QR Payment via Krungsri). It supports barcode scanning, thermal printer integration, and local data persistence via SharedPreferences.
+**KaceePOS (KACEEPOS 2.0)** is a Flutter self-checkout application for Android kiosks (e.g. Sunmi T2). Customers scan barcodes, review the cart, pay via Krungsri QR Payment, and get a Bluetooth thermal receipt. Products, orders and payment state live on a backend API; local state uses SharedPreferences.
 
-**Key Package Name:** `com.kacee.pos.kacee_pos`  
-**Min SDK:** Android 21 (API 21)  
-**Target SDK:** Latest (flutter.targetSdkVersion)  
-**Language:** Dart 2.18.2+
+- **Namespace:** `com.kacee.pos.kacee_pos`
+- **Application ID:** `com.kacee.pos.kacee_pos.v2` (differs from namespace — v2 installs side-by-side with v1)
+- **Version:** `2.0.0+1` (pubspec.yaml)
+- **Dart SDK:** `>=3.0.0 <4.0.0`
+- **Min/Target SDK:** `flutter.minSdkVersion` / `flutter.targetSdkVersion`
 
 ## Build & Development Commands
 
-### Setup
 ```bash
 flutter pub get                    # Install dependencies
 flutter clean                      # Clean build artifacts
-```
-
-### Building
-```bash
-flutter build apk                  # Build debug APK (default)
-flutter build apk --split-per-abi  # Build split APKs per ABI (arm, arm64)
-flutter build apk --release        # Build release APK
-
-# Custom build with versioning:
-flutter build apk --build-name=1.0 --build-number=1
-```
-
-### Running
-```bash
+flutter analyze                    # Lint (flutter_lints via analysis_options.yaml)
+flutter test                       # Run tests (only boilerplate exists — see Testing)
 flutter run                        # Run on connected device/emulator
-flutter run --release             # Run release build on device
+
+flutter build apk --release
+flutter build apk --target-platform android-arm,android-arm64 --split-per-abi
+flutter build apk --build-name=X.Y.Z --build-number=N
 ```
 
-### Development & Debugging
-```bash
-flutter analyze                    # Run Dart analyzer (linting)
-flutter test                       # Run widget tests
-flutter pub outdated              # Check dependency versions
-
-# Clean and rebuild:
-flutter clean && flutter pub get && flutter run
-```
-
-### IDE Configuration
-- **Workspace:** `KaceePOS.code-workspace` (VS Code workspace file)
-- **Analysis:** Configure via `analysis_options.yaml` (includes flutter_lints/flutter.yaml)
+VS Code workspace: `KaceePOS.code-workspace`.
 
 ## Architecture & Code Structure
 
-### Directory Layout
-
 ```
 lib/
-├── main.dart              # App entry point (MaterialApp setup, routing)
-├── constants.dart         # Color palette, text styles, icons (theme constants)
-├── routes.dart           # Named route definitions (/, /home, /login)
+├── main.dart              # MaterialApp: dark ColorScheme, Kanit font, title 'KACEEPOS 2.0'
+├── constants.dart         # "Aurora Premium" design tokens (colors, gradients, shadows, radii, spacing, text styles)
+├── routes.dart            # '/', '/home' → WelcomeScreen; '/login' → LoginScreen
 ├── network_utils/
-│   └── api.dart          # Network layer (HTTP client, API endpoints, headers)
+│   ├── api.dart           # Network class (all HTTP calls, 15s timeout)
+│   └── krungsri_ca.dart   # Bundled DigiCert Global Root G2 PEM for Krungsri TLS
+├── services/
+│   ├── krungsri_payment_service.dart # Krungsri merchant config + signed precreate / isPaid
+│   ├── printer_service.dart  # Singleton: Bluetooth printer connect + receipt prefetch/print
+│   └── tts_service.dart      # Singleton: Thai text-to-speech (flutter_tts)
 ├── model/
-│   ├── product.dart      # Product model with JSON serialization
-│   └── user_login.dart   # User login model
+│   ├── product.dart
+│   └── user_login.dart
 ├── Screen/
-│   ├── Welcome/          # Welcome/splash screen
-│   │   ├── welcome_screen.dart
-│   │   └── components/
-│   │       ├── background.dart
-│   │       └── body.dart
-│   ├── Login/            # Login screen with credential entry
-│   │   ├── login_screen.dart
-│   │   └── components/
-│   │       ├── background.dart
-│   │       └── body.dart
-│   └── Pos/              # Main POS/self-checkout functionality
-│       ├── main_screen.dart       # Shopping cart & product selection
-│       ├── second_screen.dart     # Payment/QR code screen (180s timer)
-│       ├── end_screen.dart        # Order confirmation (10s timer)
-│       ├── provider/
-│       │   └── provider.dart      # ChangeNotifier for loading JSON data
-│       └── components/
-│           ├── background.dart
-│           └── body.dart
-└── components/           # Reusable UI widgets
-    ├── rounded_button.dart
-    ├── rounded_text_input.dart
-    ├── rounded_password_input.dart
-    ├── rounded_number_input.dart
-    ├── dailog_container.dart     # Custom alert dialogs
-    ├── table_container.dart
-    ├── box_container.dart
-    └── [other input/display components]
+│   ├── Welcome/           # welcome_screen.dart + components/{background,body}.dart
+│   ├── Login/             # login_screen.dart + components/{background,body}.dart (login logic lives in body.dart)
+│   └── Pos/
+│       ├── main_screen.dart        # Cart, barcode scanning, creates QR (trans/precreate)
+│       ├── second_screen.dart      # QR payment screen, 180s countdown + 500ms status polling
+│       ├── end_screen.dart         # Thank-you screen, 10s countdown → MainScreen
+│       ├── provider/provider.dart  # MyHomePageProvider — unused
+│       └── components/{background,body}.dart
+└── components/            # Reusable widgets
+    ├── aurora_background.dart      # Shared animated background (used by all Background widgets)
+    ├── calculator_container.dart
+    ├── dailog_container.dart, dailog_warning_container.dart
+    ├── rounded_button*.dart        # rounded_button, _home, _logout
+    ├── rounded_text_input.dart, rounded_password_input.dart, rounded_number_input.dart
+    ├── text_field_container.dart, textpass_field_container.dart
+    └── table_container.dart, box_container.dart
 ```
 
 ### State Management
 
-**Approach:** Simple `ChangeNotifier` pattern (minimal)
-- **Provider File:** `lib/Screen/Pos/provider/provider.dart`
-- **Pattern:** `MyHomePageProvider extends ChangeNotifier` loads product data from JSON assets
-- **Usage:** Direct setState() in StatefulWidget screens (main_screen.dart, second_screen.dart)
-- **Data Persistence:** SharedPreferences for tokens, user info, printer MAC address
+No state-management library. Screens are `StatefulWidget`s using `setState()`; cross-screen state goes through SharedPreferences or constructor arguments. `PrinterService` and `TtsService` are app-wide singletons (`factory` constructor returning a static instance).
 
-**Note:** State management is basic; complex global state uses SharedPreferences directly.
+### Theming (`constants.dart`)
 
-### Network Layer
+Dark "Aurora Premium" theme. Prefer the new tokens for new UI:
+- Surfaces: `kcInkColor` (scaffold), `kcSurfaceColor`, `kcSurfaceColorHi/Lo`, `kcStrokeColor`
+- Accents: `kcAccentOrange` (= `kcPrimaryColor` F96349), `kcAccentPink`, `kcAccentAmber`, `kcSuccessColor`, `kcWarningColor`, `kcDangerColor`
+- Text: `kcTextPrimary/Secondary/Muted/Faint`
+- Also `kcBrandGradient`, `kcGlassGradient`, `kcShadowSoft/Glow`, `kcRadius*`, `kcSpace*`, `kcDisplayStyle`…`kcCaptionStyle`
 
-**File:** `lib/network_utils/api.dart` (`Network` class)
+Legacy tokens (`kcPrimaryColor`, `kcSecondaryColor`, `kcOrangeColor`, `kcPurpleColor`, `appBarStyle`, `tableH`, `iconA`…) are kept for backward compatibility.
 
-**Configuration:**
-- **Base URL:** `http://192.168.2.12:1145/api/self-checkout/`
-- **Auth URL:** `http://192.168.2.12:1145/api/auth/login`
-- **Payment URL:** `https://api.krungsri.com/native/QRPayment/` (QR Payment provider)
+### Network Layer (`lib/network_utils/api.dart`)
 
-**Key Methods:**
-- `getLogin(user)` - POST to auth endpoint
-- `authData(data, apiUrl)` - POST with token (Bearer auth)
-- `getSearchProduct(apiUrl)` - GET product search with token
-- `paymentTransfer(apiUrl, data)` - POST to Krungsri QR Payment API
-- `getCancelOrder(apiUrl, oid)` - Cancel order
+- **Backend base:** `http://192.168.2.12:1145/api/self-checkout/`
+- **Auth:** `http://192.168.2.12:1145/api/auth/login`
+- **Krungsri QR:** `https://api.krungsri.com/native/QRPayment/`
 
-**Headers:**
-- Standard: `Content-Type: application/json`, `Authorization: Bearer {token}`
-- Krungsri QR: `API-Key`, `X-Client-Transaction-ID` (UUID), `Content-Type`
-- SSL verification disabled for Krungsri API (BadCertificateCallback)
+A single static `http.Client` is reused for keep-alive (matters for the fast payment polling). Every request has a 15s timeout, so callers must catch `TimeoutException`. If a request hangs, the `_isPolling` guard blocks all payment polling behind it.
 
-### UI Architecture
+Krungsri calls use a separate cached `IOClient` with **full TLS verification**: the system trust store plus the bundled DigiCert Global Root G2 (`krungsri_ca.dart`) for older Android builds. Never add a `badCertificateCallback` that returns true. A forged api.krungsri.com could swap the payment QR for an attacker's account.
 
-**Screen Flow:**
-1. **WelcomeScreen** → Entry point with app branding and "Start" button
-2. **LoginScreen** → Username/password entry (hardcoded user: "pos02", dynamic password)
-3. **MainScreen** → Product browsing with barcode scanner, shopping cart, quantity controls
-4. **SecondScreen** → Payment processing with QR code display, 180-second payment timer
-5. **EndScreen** → Order confirmation with auto-return to MainScreen after 10s
+| Method | Use |
+|---|---|
+| `getLogin(user)` | POST form body to auth URL (no token) |
+| `getSearchProduct(path)` | GET with Bearer token (also used for any authenticated GET) |
+| `pushTransfer(path, data)` | POST JSON with Bearer token |
+| `getCancelOrder(path, data)` | POST JSON with Bearer token |
+| `paymentTransfer(path, data)` | POST to Krungsri with `API-Key` + `X-Client-Transaction-ID` (UUID v4) |
 
-**Component Pattern:**
-- Screens separate concerns: Screen container → Body → Background/Layout
-- Reusable components in `lib/components/` (buttons, inputs, dialogs)
-- All text styles defined in `constants.dart` (Kanit font)
-- Colors: Primary (F96349), Secondary (DA0041), Orange (F11C00), Purple (D64D76)
+Backend endpoints in use: `user/detail/`, `order/get/`, `order/item/add`, `order/item/del`, `order/clear`, `order/cancel`, `payment/log`, `payment/complete/{order_id}`, `payment/detail/complete/{trxId}/{order_id}`, `order/receipt/{order_id}`, `order/receipt/reprint/{id}`.
+Krungsri endpoints: `trans/precreate` (create QR), `trans/detail` (query status).
 
-### Key Features & Dependencies
+Krungsri requests are built in `KrungsriPaymentService`. They're signed with SHA-256 over a sorted `key=value&...` string, then RSA-encrypted with the bank's public key (`crypton`). `precreate()` stores `qrcodeContent`/`trxId` in prefs, and `isPaid(trxId)` queries `trans/detail`.
 
-**Barcode Scanning:** `flutter_barcode_listener` - Real-time barcode input via device keyboard
-**Bluetooth Printer:** `print_bluetooth_thermal` - Thermal receipt printing with ESC/POS format
-**QR Generation:** `qr_flutter` - QR code display for payment
-**Payment Integration:** Krungsri QR Payment API with custom headers
-**Local Storage:** `shared_preferences` - Token, user ID, printer MAC, shop details
-**Connectivity:** `connectivity_plus` - Network status checking
-**UI Utilities:** `page_transition`, `visibility_detector`, `scroll_to_index`, `scrollable_positioned_list`
-**Image Processing:** `image` package for ESC/POS receipt image generation
-**Encryption:** `crypton`, `crypto` - Data encryption for payment data
+### Screen & Payment Flow
 
-### Android Configuration
+1. **WelcomeScreen** → push LoginScreen.
+2. **LoginScreen** (`Login/components/body.dart`): posts credentials; on 200 stores `token`, `id`, `shop_code`, `machine_code`, `mac_printer` and pushes MainScreen.
+3. **MainScreen**:
+   - Calls `PrinterService().ensureConnected()` on init; loads `user/detail/` and `order/get/` (stores `order_id`).
+   - `BarcodeKeyboardListener` (100ms buffer) → `order/item/add`; plays `assets/sound/noproduct.mp3` when not found; TTS reads the total via `TtsService().speakAmount()`.
+   - "Pay" runs `QRPayment()` (an `_isPaying` guard blocks double-taps). It calls `KrungsriPaymentService.precreate()`, then `pushAndRemoveUntil` to SecondScreen, passing cart snapshots (`initialProducts`, `initialTotalPrice`, `initialTotalQty`, `initialOrderNumber`, `initialOrderId`) so the list renders immediately.
+4. **SecondScreen**:
+   - Loads the QR and `trxId` from prefs on its own (so the QR still shows if `order/get` fails), logs via `payment/log`, and kicks off `PrinterService().prefetchReceipt('order/receipt/$oid')`.
+   - `_timer` (1s) drives the 180s countdown (`_maxSeconds = 180`); `_pollTimer` (500ms) calls `payment/complete/{order_id}`; `_isPolling`/`_finished` guard re-entrancy.
+   - On timeout: two retry passes (Krungsri `trans/detail` → `payment/detail/complete/...`, plus the local callback) with a 5s loading dialog between, then TTS + timeout dialog.
+   - `_onPaymentSuccess()` navigates to EndScreen **immediately**, then prints the receipt in the background.
+   - Cancel uses `order/cancel` and then `pushAndRemoveUntil` MainScreen.
+5. **EndScreen**: TTS "ขอบคุณที่ใช้บริการ", 10s countdown → `pushAndRemoveUntil` MainScreen.
 
-**File:** `android/app/build.gradle`
+**Back button / navigation:** After the first sale, every screen is the only route on the stack (all navigation uses `pushAndRemoveUntil`), so letting a back-press pop through closes the app. Each `onWillPop` therefore navigates explicitly and returns `false`:
+- MainScreen: confirm logout → LoginScreen
+- SecondScreen: confirm → stop timers → MainScreen (the order is **not** cancelled)
+- EndScreen: → MainScreen
 
-- **Namespace:** `com.kacee.pos.kacee_pos`
-- **Compile SDK:** flutter.compileSdkVersion
-- **Java Version:** 17
-- **Kotlin:** 1.8.22, jvmTarget 17
-- **Key Permissions:** INTERNET, BLUETOOTH (SCAN, CONNECT, ADMIN, etc.), LOCATION (for BLE)
-- **Multi-Dex:** Enabled (`multiDexEnabled true`)
-- **Signing:** Debug signing (release config commented out; requires key.properties setup)
+### Receipt Printing (`services/printer_service.dart`)
 
-**Manifest Features:**
-- MainActivity: singleTop launch mode, normal/launch theme
-- Hardware acceleration enabled
-- Soft input mode: adjustResize
+- Backend returns the receipt as a base64 image (`data`). It's decoded, resized to width 380, and rendered via `imageRaster` (58mm paper, `CP1250`) inside a `compute()` isolate.
+- **Do not switch to `PosImageFn.graphics`.** The customer's printer doesn't support `GS ( L` and prints blank.
+- `prefetchReceipt` caches rendered bytes per path; `printReceipt` awaits any in-flight prefetch, uses the cache when it can, and otherwise fetches. `_printing` blocks concurrent prints.
+- `ensureConnected` checks status (3s timeout), force-disconnects (a workaround for stale sockets on the older Sunmi T2 / Android 7.1 BT stack), and connects with an 8s timeout. Failure reasons go into `lastConnectError` (Thai) for the UI.
 
-## Important Implementation Details
+### Text-to-Speech (`services/tts_service.dart`)
 
-### Hardcoded Values & Configurations
+`th-TH`, speech rate 0.5, lazy one-time init. `speak()` stops any pending speech first. `speakAmount(1250.50)` → "ยอดรวม 1250 บาท 50 สตางค์".
 
-⚠️ **API Endpoints:** Hardcoded IP (192.168.2.12:1145) in `network_utils/api.dart`  
-⚠️ **Krungsri Merchant ID:** Hardcoded in `second_screen.dart` (bizMchId)  
-⚠️ **Username:** Hardcoded as "pos02" in login form (`rounded_text_input.dart` has `controller: TextEditingController(text: "pos02")`)  
-⚠️ **API Key:** Hardcoded in `api.dart` (_setHead method)
+## SharedPreferences Keys
 
-### LocalStorage Keys
+| Key | Set in | Purpose |
+|---|---|---|
+| `token` | Login | Bearer token |
+| `id` | Login | User ID |
+| `shop_code`, `machine_code` | Login (MainScreen refreshes) | Shop/machine identifiers |
+| `mac_printer` | Login | Bluetooth printer MAC (from backend user record) |
+| `order_id` | MainScreen (`order/get/`) | Current order |
+| `qrcodeContent`, `trxId` | `QRPayment()` | Krungsri QR payload + transaction ID |
 
-SharedPreferences is used to store:
-- `token` - JWT/bearer token from login
-- `id` - User ID
-- `shop_code` - Shop identifier
-- `machine_code` - POS machine identifier
-- `mac_printer` - Bluetooth printer MAC address
-- Order-related data (order_id, shop_name, etc.)
+## Hardcoded Values ⚠️
 
-### Time-Based Screens
+- **API host** `192.168.2.12:1145` in `api.dart`.
+- **Krungsri API key** in `api.dart` `_setHead()` (production key active; UAT key commented out).
+- **Krungsri `bizMchId`, `billerId`, `ref2`, `terminalId`, RSA public key** live in `services/krungsri_payment_service.dart`. UAT values are in a comment there.
+- **Login username `pos01`**: prefilled in `rounded_text_input.dart`, and `Login/components/body.dart` also sends `'email': 'pos01'` no matter what the user typed.
 
-- **SecondScreen (Payment):** 180-second countdown timer; user must complete QR payment within time window
-- **EndScreen (Confirmation):** 10-second countdown; auto-redirects to MainScreen on timeout or user confirmation
+## Android Configuration (`android/app/build.gradle`)
 
-### ESC/POS Thermal Printing
-
-Integrated via `print_bluetooth_thermal` and `esc_pos_utils_plus`. Receipt formatting:
-- Image-based content via `image` package
-- Charset conversion for Thai text support (`charset_converter`)
-- Receipt template in StringBuffer (coreItem, coreTotal)
-
-## Testing
-
-**Test File:** `test/widget_test.dart` (boilerplate)
-
-```bash
-flutter test                    # Run all tests
-flutter test test/widget_test.dart  # Run specific test file
-```
-
-Currently only boilerplate test coverage exists.
+Java 17, Kotlin 1.8.22 (jvmTarget 17), multiDex on. Release builds use the **debug** signing config; the release `signingConfigs` block (key.properties) is commented out. Permissions include INTERNET, Bluetooth (SCAN/CONNECT/ADMIN) and location (for BLE).
 
 ## Assets
 
-Organized in `assets/` directory:
-- `images/` - UI images (welcome.png, etc.)
-- `icons/` - App icons (launcher_icon, etc.)
-- `google_fonts/` - Kanit font files (TTF)
-- `sound/` - Audio files for notifications
+- `assets/images/` — UI images (welcome, QR header/footer/logo, receipt templates, etc.)
+- `assets/icons/` — launcher icon source `logo.png` (flutter_launcher_icons, `min_sdk_android: 21`)
+- `assets/google_fonts/` — Kanit (only Regular + Italic registered in pubspec)
+- `assets/sound/` — `noproduct.mp3` (used), `BanKai.mp3`
 
-**App Icon Generation:** Configured via flutter_launcher_icons (pubspec.yaml); source: `assets/icons/logo.png`
+## Testing
+
+`test/widget_test.dart` is the default Flutter counter template. It doesn't match this app and will fail. There are no real tests.
 
 ## Known Issues & Notes
 
-1. **TODO in code:** `main_screen.dart` contains commented build commands for APK splitting
-2. **Copy file present:** `lib/Screen/Pos/second_screen copy.dart` (leftover backup; consider removing)
-3. **Provider unused:** `MyHomePageProvider` loads JSON but not actively used in payment flow
-4. **Null safety:** Some files use `late` declarations without initialization guards
-5. **Locale hardcoding:** Thai locale strings throughout (date formatting, alert messages)
-
-## Version & Compatibility
-
-- **Flutter/Dart:** SDK >= 2.18.2 < 4.0.0
-- **pubspec.yaml:** Version 1.0.0+1
-- **Android Gradle Plugin:** Latest (via dev.flutter.flutter-gradle-plugin)
-- **Dependencies:** See pubspec.lock for pinned versions; key packages: connectivity_plus ^6.1.1, http ^0.13.4, shared_preferences ^2.0.13
-
-## Publishing & Versioning
-
-Version managed in `pubspec.yaml`:
-```yaml
-version: 1.0.0+1
-```
-
-Build commands support custom versioning:
-```bash
-flutter build apk --build-name=X.Y.Z --build-number=N
-```
-
-Signing requires `android/key.properties` (template provided in build.gradle, currently commented).
+1. `MyHomePageProvider` (`Pos/provider/provider.dart`) is unused.
+2. The backend runs on plain HTTP (`192.168.2.12:1145`), so the Bearer token and order data are unencrypted on the LAN.
+3. About 1,400 files under `android/app/build/` are tracked in git and show up as noise in `git status`. Don't commit build output.
+4. Thai strings (alerts, TTS, date formats) are hardcoded throughout. There's no i18n.
